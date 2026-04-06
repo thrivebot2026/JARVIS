@@ -183,6 +183,26 @@
             letter-spacing: 1px;
             text-shadow: var(--glow);
         }
+        .footer-info {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            text-align: center;
+            font-size: 0.8em;
+            letter-spacing: 1.5px;
+            text-transform: uppercase;
+            opacity: 0.4;
+            z-index: 5;
+            pointer-events: none;
+            width: 100%;
+        }
+        .ai-disclaimer {
+            font-size: 0.7em;
+            margin-top: 5px;
+            font-style: italic;
+            letter-spacing: 1px;
+        }
 
     </style>
 </head>
@@ -215,6 +235,11 @@
         <div class="controls">
             <button class="mic-btn" id="micBtn">🎙️</button>
             <div class="console-log" id="log">SYSTEM READY</div>
+        </div>
+
+        <div class="footer-info">
+            <div>Powered By Atharv Wani</div>
+            <div class="ai-disclaimer">DISCLAIMER: ALL DATA IS AI-GENERATED. PLEASE CROSS-CHECK CRITICAL INFORMATION.</div>
         </div>
     </div>
 
