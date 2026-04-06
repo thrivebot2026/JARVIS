@@ -204,10 +204,32 @@
             letter-spacing: 1px;
         }
 
+        /* Gmail Integration */
+        .gmail-btn {
+            position: absolute;
+            top: 30px;
+            left: 440px;
+            padding: 8px 15px;
+            background: var(--glass-bg);
+            border: 1px solid var(--primary-blue);
+            color: var(--primary-blue);
+            cursor: pointer;
+            font-family: 'Rajdhani';
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            font-size: 0.8em;
+            transition: 0.3s;
+            z-index: 100;
+            box-shadow: var(--glow);
+        }
+        .gmail-btn:hover { background: rgba(0, 212, 255, 0.2); transform: translateY(-2px); }
+        .gmail-btn.connected { border-color: #00ff88; color: #00ff88; box-shadow: 0 0 15px rgba(0, 255, 136, 0.3); }
+
     </style>
 </head>
 <body>
     <div class="hud-overlay"></div>
+    <button class="gmail-btn" id="gmailBtn">LINK GMAIL</button>
 
     <div id="status-bar">
         <div id="time">00:00 AM</div>
@@ -519,8 +541,38 @@
                 const reply = "Accessing Google Calendar.";
                 speak(reply);
                 saveHistory(cmd, reply);
+            } else if (query.includes("summarize email") || query.includes("summarize my emails") || query.includes("check my inbox")) {
+                summarizeEmails();
             } else {
                 callAI(query);
+            }
+        }
+
+        async function summarizeEmails() {
+            logEl.innerText = "ACCESSING GMAIL CORE...";
+            try {
+                const res = await fetch('/api/emails/summarize');
+                const data = await res.json();
+                
+                if (data.error) {
+                    if (res.status === 401) {
+                        const reply = "I apologize, Sir. Your Gmail account is not linked. Please click the Link Gmail button to provide access.";
+                        speak(reply);
+                        saveHistory("System Request", reply);
+                        return;
+                    }
+                    throw new Error(data.error);
+                }
+
+                speak(data.summary);
+                saveHistory("Email Summary", data.summary);
+                logEl.innerText = "SUMMARY COMPLETE";
+            } catch (err) {
+                console.error("Gmail Summary Error:", err);
+                const reply = "I apologize, Sir. I encountered an error while accessing your neural mail link.";
+                speak(reply);
+                saveHistory("System Error", reply);
+                logEl.innerText = "GMAIL ERROR";
             }
         }
 
@@ -577,6 +629,17 @@
                 logEl.innerText = "ERROR: " + err.message;
             }
         }
+
+        const gmailBtn = document.getElementById('gmailBtn');
+
+        gmailBtn.onclick = async () => {
+            const res = await fetch('/api/auth/google');
+            const data = await res.json();
+            if (data.url) {
+                window.open(data.url, '_blank');
+                gmailBtn.innerText = "AUTHENTICATING...";
+            }
+        };
 
         // --- INITIALIZATION ---
         window.speechSynthesis.onvoiceschanged = () => {
