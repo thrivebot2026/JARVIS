@@ -1,7 +1,6 @@
 const express = require('express');
 const cors = require('cors');
 require('dotenv').config();
-const { google } = require('googleapis');
 
 const app = express();
 app.use(cors());
@@ -10,15 +9,6 @@ app.use(express.static('public'));
 
 const API_KEY = process.env.GEMINI_API_KEY;
 const GROQ_API_KEY = process.env.GROQ_API_KEY;
-
-// Gmail OAuth2 Config
-const oauth2Client = new google.auth.OAuth2(
-    process.env.GMAIL_CLIENT_ID,
-    process.env.GMAIL_CLIENT_SECRET,
-    process.env.GMAIL_REDIRECT_URI
-);
-
-let userTokens = null; // In-memory store for demo. In production, use a database.
 
 app.post('/api/ai', async (req, res) => {
     console.log("--- New AI Request Received ---");
@@ -101,83 +91,6 @@ app.post('/api/ai', async (req, res) => {
     res.status(503).json({ error: "Neural link offline: No API keys or Quota exceeded on all cores." });
 });
 
-// --- GMAIL OAUTH ENDPOINTS ---
-app.get('/api/auth/google', (req, res) => {
-    const url = oauth2Client.generateAuthUrl({
-        access_type: 'offline',
-        scope: ['https://www.googleapis.com/auth/gmail.readonly'],
-        prompt: 'consent'
-    });
-    res.json({ url });
-});
-
-app.get('/api/auth/google/callback', async (req, res) => {
-    const { code } = req.query;
-    try {
-        const { tokens } = await oauth2Client.getToken(code);
-        oauth2Client.setCredentials(tokens);
-        userTokens = tokens;
-        res.send('<h1>Authentication Successful</h1><p>You can close this window now and return to JARVIS.</p><script>setTimeout(() => window.close(), 2000)</script>');
-    } catch (error) {
-        console.error("Auth Error:", error);
-        res.status(500).send("Authentication Failed");
-    }
-});
-
-// --- EMAIL SUMMARIZATION ENDPOINT ---
-app.get('/api/emails/summarize', async (req, res) => {
-    if (!userTokens) {
-        return res.status(401).json({ error: "Gmail not connected. Please authenticate." });
-    }
-
-    try {
-        oauth2Client.setCredentials(userTokens);
-        const gmail = google.gmail({ version: 'v1', auth: oauth2Client });
-
-        // Fetch last 5 unread emails
-        const listRes = await gmail.users.messages.list({
-            userId: 'me',
-            q: 'is:unread',
-            maxResults: 5
-        });
-
-        const messages = listRes.data.messages || [];
-        if (messages.length === 0) {
-            return res.json({ summary: "Your inbox is clear, Sir. No new unread emails." });
-        }
-
-        let emailContents = "";
-        for (const msg of messages) {
-            const detail = await gmail.users.messages.get({
-                userId: 'me',
-                id: msg.id
-            });
-            const snippet = detail.data.snippet;
-            const subject = detail.data.payload.headers.find(h => h.name === 'Subject')?.value || "No Subject";
-            emailContents += `Subject: ${subject}\nSnippet: ${snippet}\n---\n`;
-        }
-
-        // Send to Gemini for summarization
-        const summaryResponse = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${API_KEY}`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                contents: [{
-                    parts: [{ text: `Summarize these recent emails for me in a professional JARVIS-like tone. Highlight key actions or urgent items:\n\n${emailContents}` }]
-                }]
-            })
-        });
-
-        const summaryData = await summaryResponse.json();
-        const summary = summaryData.candidates?.[0]?.content?.parts?.[0]?.text || "I was unable to process the email summaries at this time.";
-
-        res.json({ summary });
-
-    } catch (error) {
-        console.error("Gmail/AI Error:", error);
-        res.status(500).json({ error: "Failed to summarize emails." });
-    }
-});
 
 const PORT = process.env.PORT || 3000;
 
