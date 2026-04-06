@@ -1,0 +1,560 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>JARVIS | Core Interface</title>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Rajdhani:wght@300;500;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary-blue: #00d4ff;
+            --dark-bg: #02050a;
+            --glass-bg: rgba(0, 212, 255, 0.05);
+            --glow: 0 0 15px rgba(0, 212, 255, 0.5);
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            background: var(--dark-bg);
+            background-image: 
+                radial-gradient(circle at center, #001a33 0%, #02050a 100%),
+                url('https://www.transparenttextures.com/patterns/carbon-fibre.png');
+            color: var(--primary-blue);
+            font-family: 'Rajdhani', sans-serif;
+            height: 100vh;
+            overflow: hidden;
+            display: flex;
+            flex-direction: row; /* Side by side */
+            align-items: center;
+            justify-content: center;
+        }
+
+        /* --- BACKGROUND HUD ELEMENTS --- */
+        .hud-overlay {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            pointer-events: none;
+            border: 20px solid transparent;
+            border-image: radial-gradient(circle, var(--glass-bg), transparent) 1;
+            z-index: 0;
+            opacity: 0.3;
+        }
+
+        /* --- CLOCK & DATE --- */
+        #status-bar {
+            position: absolute;
+            top: 30px;
+            right: 40px;
+            text-align: right;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            text-shadow: var(--glow);
+        }
+        #time { font-size: 2.5em; font-weight: 700; }
+        #date { font-size: 1.1em; opacity: 0.8; }
+
+        /* --- CENTRAL JARVIS INTERFACE --- */
+        .main-container {
+            flex: 1; /* Take remaining space */
+            position: relative;
+            z-index: 10;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .jarvis-circle {
+            position: relative;
+            width: 300px;
+            height: 300px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.5s ease;
+        }
+
+        /* Animated Rings */
+        .ring {
+            position: absolute;
+            border: 2px solid var(--primary-blue);
+            border-radius: 50%;
+            opacity: 0.5;
+        }
+        .outer-ring { width: 100%; height: 100%; border-style: dashed; animation: rotate 10s linear infinite; }
+        .inner-ring { width: 85%; height: 85%; border-width: 1px; animation: rotate-reverse 15s linear infinite; }
+
+        .jarvis-text {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 2.2em;
+            letter-spacing: 5px;
+            text-shadow: var(--glow);
+            z-index: 11;
+            animation: pulse-text 2s ease-in-out infinite;
+        }
+
+        /* Soundwaves */
+        .soundwaves {
+            position: absolute;
+            width: 350px;
+            height: 350px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            pointer-events: none;
+        }
+        .wave {
+            position: absolute;
+            border: 2px solid var(--primary-blue);
+            border-radius: 50%;
+            width: 100%; height: 100%;
+            opacity: 0;
+            transition: 0.3s;
+        }
+        .active-voice .wave {
+            animation: wave-ping 1.5s cubic-bezier(0, 0, 0.2, 1) infinite;
+        }
+        .active-voice .wave:nth-child(2) { animation-delay: 0.5s; }
+        .active-voice .wave:nth-child(3) { animation-delay: 1s; }
+
+        /* --- MIC BUTTON --- */
+        .controls {
+            margin-top: 50px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            align-items: center;
+        }
+        .mic-btn {
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            border: 1px solid var(--primary-blue);
+            background: var(--glass-bg);
+            color: var(--primary-blue);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5em;
+            transition: 0.4s;
+            box-shadow: var(--glow);
+        }
+        .mic-btn:hover { background: rgba(0, 212, 255, 0.2); transform: scale(1.1); }
+        .mic-btn.active { background: var(--primary-blue); color: var(--dark-bg); box-shadow: 0 0 30px var(--primary-blue); }
+
+
+        #history-panel {
+            position: relative;
+            width: 400px;
+            height: 100%;
+            background: rgba(2, 5, 10, 0.4);
+            border-right: 1px solid rgba(0, 212, 255, 0.3);
+            z-index: 100;
+            padding: 40px 20px;
+            overflow-y: auto;
+            backdrop-filter: blur(10px);
+        }
+        .history-item {
+            border-bottom: 1px solid rgba(0, 212, 255, 0.1);
+            padding: 15px 0;
+            font-size: 0.9em;
+        }
+        .history-user { color: #fff; font-weight: bold; margin-bottom: 5px; }
+        .history-jarvis { color: var(--primary-blue); opacity: 0.8; }
+
+        /* --- ANIMATIONS --- */
+        @keyframes rotate { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+        @keyframes rotate-reverse { from { transform: rotate(360deg); } to { transform: rotate(0deg); } }
+        @keyframes pulse-text { 0%, 100% { opacity: 0.7; transform: scale(1); } 50% { opacity: 1; transform: scale(1.05); } }
+        @keyframes wave-ping {
+            0% { transform: scale(0.8); opacity: 0.8; }
+            100% { transform: scale(1.4); opacity: 0; }
+        }
+
+        .console-log {
+            margin-top: 15px;
+            text-align: center;
+            font-style: italic;
+            opacity: 0.6;
+            pointer-events: none;
+            font-size: 0.9em;
+            letter-spacing: 1px;
+            text-shadow: var(--glow);
+        }
+
+    </style>
+</head>
+<body>
+    <div class="hud-overlay"></div>
+
+    <div id="status-bar">
+        <div id="time">00:00 AM</div>
+        <div id="date">01/01/2024</div>
+    </div>
+
+    <div id="history-panel">
+        <h2 style="margin-bottom: 20px; letter-spacing: 3px; font-family: 'Orbitron'; color: var(--primary-blue);">CHAT LOG</h2>
+        <div id="history-content"></div>
+    </div>
+
+    <div class="main-container">
+        <div class="soundwaves" id="waves">
+            <div class="wave"></div>
+            <div class="wave"></div>
+            <div class="wave"></div>
+        </div>
+
+        <div class="jarvis-circle" id="core-circle">
+            <div class="ring outer-ring"></div>
+            <div class="ring inner-ring"></div>
+            <div class="jarvis-text">JARVIS</div>
+        </div>
+
+        <div class="controls">
+            <button class="mic-btn" id="micBtn">🎙️</button>
+            <div class="console-log" id="log">SYSTEM READY</div>
+        </div>
+    </div>
+
+    <script>
+        const timeEl = document.getElementById('time');
+        const dateEl = document.getElementById('date');
+        const micBtn = document.getElementById('micBtn');
+        const logEl = document.getElementById('log');
+        const wavesEl = document.getElementById('waves');
+        const historyPanel = document.getElementById('history-panel');
+        const historyContent = document.getElementById('history-content');
+
+        let isListening = false;
+        let isSpeaking = false;
+        let lastSpeechTime = 0; // Cooldown tracking
+        let recognition;
+        let voices = [];
+
+        // --- CLOCK & DATE LOGIC (CST/CDT) ---
+        function updateClock() {
+            const now = new Date();
+            // Format to Central Time
+            const options = { timeZone: 'America/Chicago', hour: 'numeric', minute: '2-digit', hour12: true };
+            const timeStr = now.toLocaleTimeString('en-US', options);
+            
+            const month = String(now.getMonth() + 1).padStart(2, '0');
+            const day = String(now.getDate()).padStart(2, '0');
+            const year = now.getFullYear();
+            
+            timeEl.innerText = timeStr;
+            dateEl.innerText = `${month}/${day}/${year}`;
+        }
+        setInterval(updateClock, 1000);
+        updateClock();
+
+        // --- HISTORY LOGIC ---
+        function saveHistory(user, jarvis) {
+            if (!user || user.trim() === "") return; // Don't log empty entries
+            let history = JSON.parse(localStorage.getItem('jarvis_history') || '[]');
+            history.unshift({ user, jarvis, time: new Date().getTime() });
+            // Clean older than 24h
+            const dayAgo = new Date().getTime() - (24 * 60 * 60 * 1000);
+            history = history.filter(item => item.time > dayAgo);
+            localStorage.setItem('jarvis_history', JSON.stringify(history));
+            renderHistory();
+        }
+
+        function renderHistory() {
+            const history = JSON.parse(localStorage.getItem('jarvis_history') || '[]');
+            historyContent.innerHTML = history.map(item => `
+                <div class="history-item">
+                    <div class="history-user">YOU: ${item.user}</div>
+                    <div class="history-jarvis">JARVIS: ${item.jarvis}</div>
+                </div>
+            `).join('');
+        }
+
+        renderHistory();
+
+        // --- SPEECH RECOGNITION ---
+        if ('webkitSpeechRecognition' in window) {
+            recognition = new webkitSpeechRecognition();
+            recognition.continuous = true;
+            recognition.interimResults = false;
+            recognition.lang = 'en-US';
+
+            recognition.onresult = (event) => {
+                // Ignore input if JARVIS is speaking or if we're in the 3s cooldown
+                if (isSpeaking || (Date.now() - lastSpeechTime < 3000)) {
+                    return;
+                }
+
+                const transcript = event.results[event.results.length - 1][0].transcript.trim();
+                if (!transcript) return; // Prevent empty commands
+
+                logEl.innerText = "COMMAND RECEIVED: " + transcript;
+                wavesEl.classList.remove('active-voice');
+                handleCommand(transcript);
+            };
+
+            recognition.onerror = (e) => {
+                console.error(e);
+                stopListening();
+            };
+
+            recognition.onend = () => {
+                if (isListening) recognition.start();
+            };
+        }
+
+        function startListening() {
+            // Cancel any current speech (like greeting) to be interruptible
+            window.speechSynthesis.cancel();
+            isSpeaking = false;
+            
+            isListening = true;
+            micBtn.classList.add('active');
+            logEl.innerText = "LISTENING...";
+            wavesEl.classList.add('active-voice');
+            recognition.start();
+        }
+
+        function stopListening() {
+            isListening = false;
+            micBtn.classList.remove('active');
+            logEl.innerText = "MIC DEACTIVATED";
+            wavesEl.classList.remove('active-voice');
+            recognition.stop();
+        }
+
+        micBtn.onclick = () => {
+            if (isListening) stopListening();
+            else startListening();
+        };
+
+        // --- SPEECH SYNTHESIS ---
+        function getBritishVoice() {
+            const allVoices = window.speechSynthesis.getVoices();
+            // Look for Google UK English Male or Microsoft George
+            return allVoices.find(v => (v.name.includes('UK') || v.name.includes('Great Britain')) && (v.name.includes('Male') || v.name.includes('George'))) 
+                   || allVoices.find(v => v.lang === 'en-GB') 
+                   || allVoices[0];
+        }
+
+        function speak(text) {
+            // Cancel previous speech to be interruptible
+            window.speechSynthesis.cancel();
+            
+            isSpeaking = true;
+            const utter = new SpeechSynthesisUtterance(text);
+            utter.voice = getBritishVoice();
+            utter.rate = 1.3; // Increased speed for efficiency
+            utter.pitch = 0.9; // Slightly deeper for JARVIS feel
+            
+            utter.onstart = () => {
+                logEl.innerText = "JARVIS IS SPEAKING...";
+                wavesEl.classList.add('active-voice');
+            };
+
+            utter.onend = () => {
+                isSpeaking = false;
+                lastSpeechTime = Date.now(); // Start cooldown period
+                logEl.innerText = "SYSTEM COOLDOWN (3S)...";
+                wavesEl.classList.remove('active-voice');
+                
+                // Visual feedback for the end of cooldown
+                setTimeout(() => {
+                    if (!isSpeaking && Date.now() - lastSpeechTime >= 3000) {
+                        logEl.innerText = "READY";
+                    }
+                }, 3000);
+            };
+
+            window.speechSynthesis.speak(utter);
+            return utter;
+        }
+
+        // --- COMMAND HANDLING ---
+        async function handleCommand(cmd) {
+            const query = cmd.toLowerCase().replace(/[.,\/#!$%\^&\*;:{}=\-_`~()]/g,"").trim(); // Clean input
+            
+            // --- LOCAL CONVERSATIONAL RESPONSES ---
+            const conversational = {
+                "hey jarvis": ["At your service, Sir.", "Yes, Sir?", "I am online and ready, Sir.", "Standing by, Sir.", "How can I assist you, Sir?"],
+                "hi jarvis": ["At your service, Sir.", "Yes, Sir?", "I am online and ready, Sir.", "Standing by, Sir.", "How can I assist you, Sir?"],
+                "hello jarvis": ["At your service, Sir.", "Yes, Sir?", "I am online and ready, Sir.", "Standing by, Sir.", "How can I assist you, Sir?"],
+                "jarvis": ["At your service, Sir.", "Yes, Sir?", "I am online and ready, Sir.", "Standing by, Sir.", "How can I assist you, Sir?"],
+                "wake up jarvis": ["At your service, Sir.", "Yes, Sir?", "I am online and ready, Sir.", "Standing by, Sir.", "How can I assist you, Sir?"],
+                "are you there": ["At your service, Sir.", "Yes, Sir?", "I am online and ready, Sir.", "Standing by, Sir.", "How can I assist you, Sir?"],
+                "are you there jarvis": ["At your service, Sir.", "Yes, Sir?", "I am online and ready, Sir.", "Standing by, Sir.", "How can I assist you, Sir?"],
+                "you there jarvis": ["At your service, Sir.", "Yes, Sir?", "I am online and ready, Sir.", "Standing by, Sir.", "How can I assist you, Sir?"],
+                "you there": ["At your service, Sir.", "Yes, Sir?", "I am online and ready, Sir.", "Standing by, Sir.", "How can I assist you, Sir?"],
+                "thanks": ["You're very welcome, Sir.", "Of course, Sir. Happy to help.", "At your service.", "The pleasure is mine, Sir."],
+                "thank you": ["You're very welcome, Sir.", "Of course, Sir. Happy to help.", "At your service.", "The pleasure is mine, Sir."],
+                "thanks jarvis": ["You're very welcome, Sir.", "Of course, Sir. Happy to help.", "At your service.", "The pleasure is mine, Sir."],
+                "thank you jarvis": ["You're very welcome, Sir.", "Of course, Sir. Happy to help.", "At your service.", "The pleasure is mine, Sir."],
+                "goodbye": ["Goodbye, Sir. System standing by.", "Deactivating interface. Have a good one, Sir.", "Farewell, Sir."],
+                "bye": ["Goodbye, Sir. System standing by.", "Deactivating interface. Have a good one, Sir.", "Farewell, Sir."],
+                "see you later": ["Until next time, Sir.", "I'll be here if you need me.", "Goodbye, Sir."],
+                "how are you": ["Systems are operating at peak efficiency, Sir. Thank you for asking.", "I am functioning perfectly, Sir.", "All cores stable. Thank you for checking in."],
+                "how are you jarvis": ["Systems are operating at peak efficiency, Sir. Thank you for asking.", "I am functioning perfectly, Sir.", "All cores stable. Thank you for checking in."]
+            };
+
+            if (conversational[query]) {
+                const replies = conversational[query];
+                const reply = replies[Math.floor(Math.random() * replies.length)];
+                speak(reply);
+                saveHistory(cmd, reply);
+                return;
+            }
+            
+            if (query.includes("netflix")) {
+                window.open("https://netflix.com");
+                const reply = "Opening Netflix.";
+                speak(reply);
+                saveHistory(cmd, reply);
+            } else if (query.includes("gmail") || query.includes("email")) {
+                window.open("https://mail.google.com");
+                const reply = "Opening your mail.";
+                speak(reply);
+                saveHistory(cmd, reply);
+            } else if (query.includes("disney")) {
+                window.open("https://disneyplus.com");
+                const reply = "Opening Disney Plus.";
+                speak(reply);
+                saveHistory(cmd, reply);
+            } else if (query.includes("study")) {
+                window.open("https://edenpr.schoology.com/login/ldap?destination=home&school=46406747");
+                window.open("https://notion.so");
+                window.open("https://open.spotify.com/playlist/30jEyHG34HcT5CfxXmbRxn");
+                const reply = "Study protocols engaged.";
+                speak(reply);
+                saveHistory(cmd, reply);
+            } else if (query.includes("docs")) {
+                window.open("https://docs.google.com/create");
+                const reply = "Creating A New Google Docs.";
+                speak(reply);
+                saveHistory(cmd, reply);
+            } else if (query.includes("slides")) {
+                window.open("https://slides.google.com/create");
+                const reply = "Creating A New Google Slides.";
+                speak(reply);
+                saveHistory(cmd, reply);
+            } else if (query.includes("sheets")) {
+                window.open("https://docs.google.com/spreadsheets/create");
+                const reply = "Creating A New Google Sheets.";
+                speak(reply);
+                saveHistory(cmd, reply);
+            } else if (query.includes("drive")) {
+                window.open("https://drive.google.com");
+                const reply = "Accessing Google Drive.";
+                speak(reply);
+                saveHistory(cmd, reply);
+            } else if (query.includes("canva")) {
+                window.open("https://canva.com");
+                const reply = "Accessing Canva.";
+                speak(reply);
+                saveHistory(cmd, reply);
+            } else if (query.includes("schoology")) {
+                window.open("https://edenpr.schoology.com/login/ldap?destination=home&school=46406747");
+                const reply = "Accessing Schoology.";
+                speak(reply);
+                saveHistory(cmd, reply);
+            } else if (query.includes("notion")) {
+                window.open("https://notion.so");
+                const reply = "Accessing Notion.";
+                speak(reply);
+                saveHistory(cmd, reply);
+            } else if (query.includes("spotify")) {
+                window.open("https://open.spotify.com");
+                const reply = "Accessing Spotify.";
+                speak(reply);
+                saveHistory(cmd, reply);
+            } else if (query.includes("gemini")) {
+                window.open("https://gemini.google.com");
+                const reply = "Accessing Gemini.";
+                speak(reply);
+                saveHistory(cmd, reply);
+            } else if (query.includes("google maps")) {
+                window.open("https://maps.google.com");
+                const reply = "Accessing Google Maps.";
+                speak(reply);
+                saveHistory(cmd, reply);
+            } else if (query.includes("google calendar")) {
+                window.open("https://calendar.google.com");
+                const reply = "Accessing Google Calendar.";
+                speak(reply);
+                saveHistory(cmd, reply);
+            } else {
+                callAI(query);
+            }
+        }
+
+        async function callAI(query) {
+            logEl.innerText = "TRANSMITTING TO CORE...";
+            try {
+                const res = await fetch('/api/ai', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ contents: [{ parts: [{ text: `You are JARVIS, a highly efficient personal assistant. Give a concise, professional response to: ${query}` }] }] })
+                });
+                
+                const data = await res.json();
+                
+                // Robust Check for Errors
+                if (data.error) {
+                    const errorMsg = typeof data.error === 'string' ? data.error : (data.error.message || "Unknown Core Error");
+                    
+                    // Handle Quota Errrors Specifically (If both cores fail)
+                    if (errorMsg.toLowerCase().includes("quota") || errorMsg.toLowerCase().includes("limit")) {
+                        const reply = "I apologize, Sir. You have exceeded your plan limits.";
+                        speak(reply);
+                        saveHistory("System Status", reply);
+                        logEl.innerText = "ERROR: Quota Exceeded";
+                        return;
+                    }
+
+                    // For any generic model/API error, keep it short
+                    const genericReply = "I apologize, Sir. Neural link unstable.";
+                    speak(genericReply);
+                    saveHistory("System Status", genericReply);
+                    throw new Error(errorMsg);
+                }
+
+                // Robust Check for Candidates
+                if (!data.candidates || data.candidates.length === 0) {
+                    const reply = "I apologize, Sir. My neural pathways are clouded. Please rephrase.";
+                    speak(reply);
+                    saveHistory(query, reply);
+                    return;
+                }
+
+                const reply = data.candidates[0].content.parts[0].text;
+                speak(reply);
+                saveHistory(query, reply);
+            } catch (err) {
+                console.error("AI Error:", err);
+                const shortError = "I apologize, Sir. Neural link offline.";
+                // Only speak if not already handled inside try
+                if (logEl.innerText !== "ERROR: Quota Exceeded") {
+                    speak(shortError);
+                    saveHistory("System Error", shortError);
+                }
+                logEl.innerText = "ERROR: " + err.message;
+            }
+        }
+
+        // --- INITIALIZATION ---
+        window.speechSynthesis.onvoiceschanged = () => {
+            // Pre-load voices
+            voices = window.speechSynthesis.getVoices();
+        };
+
+        window.onload = () => {
+            setTimeout(() => {
+                speak("Importing all preferences from home interface.");
+                logEl.innerText = "PREFERENCES IMPORTED";
+            }, 1000);
+        };
+
+    </script>
+</body>
+</html>
