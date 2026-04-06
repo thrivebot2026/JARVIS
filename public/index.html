@@ -403,6 +403,15 @@
                 const reply = replies[Math.floor(Math.random() * replies.length)];
                 speak(reply);
                 saveHistory(cmd, reply);
+                
+                // Auto-disable microphone for termination commands
+                const terminationPhrases = [
+                    "thanks", "thank you", "thanks jarvis", "thank you jarvis", 
+                    "goodbye", "bye", "see you later"
+                ];
+                if (terminationPhrases.includes(query)) {
+                    stopListening();
+                }
                 return;
             }
             
