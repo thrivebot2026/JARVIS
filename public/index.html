@@ -164,6 +164,8 @@
         .history-user { color: #fff; font-weight: bold; margin-bottom: 5px; }
         .history-jarvis { color: var(--primary-blue); opacity: 0.8; }
 
+
+
         /* --- ANIMATIONS --- */
         @keyframes rotate { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
         @keyframes rotate-reverse { from { transform: rotate(360deg); } to { transform: rotate(0deg); } }
@@ -237,8 +239,9 @@
             <div class="console-log" id="log">SYSTEM READY</div>
         </div>
 
-        </div>
     </div>
+
+
 
     <div class="footer-info">
         <div>Powered By Atharv Wani</div>
@@ -360,43 +363,85 @@
         // --- SPEECH SYNTHESIS ---
         function getBritishVoice() {
             const allVoices = window.speechSynthesis.getVoices();
-            // Look for Google UK English Male or Microsoft George
             return allVoices.find(v => (v.name.includes('UK') || v.name.includes('Great Britain')) && (v.name.includes('Male') || v.name.includes('George'))) 
                    || allVoices.find(v => v.lang === 'en-GB') 
                    || allVoices[0];
         }
 
+        // Split long text into sentence-sized chunks to avoid Chrome 15s TTS bug
+        function splitIntoChunks(text, maxLen = 200) {
+            const sentences = text.match(/[^.!?]+[.!?]+/g) || [text];
+            const chunks = [];
+            let current = '';
+            for (const s of sentences) {
+                if ((current + s).length > maxLen && current.length > 0) {
+                    chunks.push(current.trim());
+                    current = s;
+                } else {
+                    current += s;
+                }
+            }
+            if (current.trim()) chunks.push(current.trim());
+            return chunks;
+        }
+
+        let keepAliveInterval = null;
+
         function speak(text) {
-            // Cancel previous speech to be interruptible
+            // Cancel any current speech immediately (interruptible)
             window.speechSynthesis.cancel();
-            
+            if (keepAliveInterval) { clearInterval(keepAliveInterval); keepAliveInterval = null; }
+
+            const chunks = splitIntoChunks(text);
+            let chunkIndex = 0;
             isSpeaking = true;
-            const utter = new SpeechSynthesisUtterance(text);
-            utter.voice = getBritishVoice();
-            utter.rate = 1.3; // Increased speed for efficiency
-            utter.pitch = 0.9; // Slightly deeper for JARVIS feel
-            
-            utter.onstart = () => {
-                logEl.innerText = "JARVIS IS SPEAKING...";
-                wavesEl.classList.add('active-voice');
-            };
 
-            utter.onend = () => {
-                isSpeaking = false;
-                lastSpeechTime = Date.now(); // Start cooldown period
-                logEl.innerText = "SYSTEM COOLDOWN (3S)...";
-                wavesEl.classList.remove('active-voice');
-                
-                // Visual feedback for the end of cooldown
-                setTimeout(() => {
-                    if (!isSpeaking && Date.now() - lastSpeechTime >= 3000) {
-                        logEl.innerText = "READY";
-                    }
-                }, 3000);
-            };
+            logEl.innerText = "JARVIS IS SPEAKING...";
+            wavesEl.classList.add('active-voice');
 
-            window.speechSynthesis.speak(utter);
-            return utter;
+            // Keep-alive workaround for Chrome's 15s TTS pause bug
+            keepAliveInterval = setInterval(() => {
+                if (window.speechSynthesis.speaking) {
+                    window.speechSynthesis.pause();
+                    window.speechSynthesis.resume();
+                }
+            }, 10000);
+
+            function speakNext() {
+                if (chunkIndex >= chunks.length) {
+                    // All chunks done
+                    clearInterval(keepAliveInterval);
+                    keepAliveInterval = null;
+                    isSpeaking = false;
+                    lastSpeechTime = Date.now();
+                    wavesEl.classList.remove('active-voice');
+                    logEl.innerText = "SYSTEM COOLDOWN (3S)...";
+                    setTimeout(() => {
+                        if (!isSpeaking && Date.now() - lastSpeechTime >= 3000) {
+                            logEl.innerText = "READY";
+                        }
+                    }, 3000);
+                    return;
+                }
+
+                const utter = new SpeechSynthesisUtterance(chunks[chunkIndex]);
+                utter.voice = getBritishVoice();
+                utter.rate = 1.3;
+                utter.pitch = 0.9;
+                utter.onend = () => {
+                    chunkIndex++;
+                    speakNext();
+                };
+                utter.onerror = (e) => {
+                    // Skip errored chunk and continue
+                    console.warn('TTS chunk error:', e);
+                    chunkIndex++;
+                    speakNext();
+                };
+                window.speechSynthesis.speak(utter);
+            }
+
+            speakNext();
         }
 
         // --- COMMAND HANDLING ---
@@ -519,10 +564,75 @@
                 const reply = "Accessing Google Calendar.";
                 speak(reply);
                 saveHistory(cmd, reply);
+            } else if (query.includes("morning brief") || query.includes("morning briefing")) {
+                fetchBrief("morning");
+            } else if (query.includes("afternoon brief") || query.includes("afternoon briefing")) {
+                fetchBrief("afternoon");
             } else {
                 callAI(query);
             }
         }
+
+        // --- BRIEFING PROTOCOLS ---
+        function formatMarkdown(text) {
+            if (!text) return "";
+            
+            // Replace headings: ### Heading or ## Heading
+            let html = text
+                .replace(/^### (.*$)/gim, '<h3 style="margin: 15px 0 5px; color: var(--primary-blue); border-bottom: 1px dashed rgba(0,212,255,0.3); padding-bottom: 2px; font-family: \'Orbitron\'; font-size: 1.1em; letter-spacing: 1px;">$1</h3>')
+                .replace(/^## (.*$)/gim, '<h2 style="margin: 20px 0 10px; color: var(--primary-blue); border-bottom: 1px solid rgba(0,212,255,0.4); padding-bottom: 4px; font-family: \'Orbitron\'; font-size: 1.25em; letter-spacing: 1px;">$1</h2>')
+                .replace(/^# (.*$)/gim, '<h1 style="margin: 20px 0 10px; color: var(--primary-blue); font-family: \'Orbitron\'; font-size: 1.4em; letter-spacing: 2px; text-shadow: var(--glow);">$1</h1>');
+                
+            // Replace bold text: **text**
+            html = html.replace(/\*\*(.*?)\*\*/g, '<strong style="color: #fff; font-weight: 700;">$1</strong>');
+            
+            // Replace bullet points: - item or * item
+            html = html.replace(/^[-\*]\s+(.*$)/gim, '<div style="margin-left: 10px; margin-bottom: 6px; display: flex; align-items: flex-start;"><span style="color: var(--primary-blue); margin-right: 8px;">▪</span><span>$1</span></div>');
+            
+            // Replace double newlines with paragraphs
+            html = html.split('\n\n').map(p => {
+                if (p.trim().startsWith('<h') || p.trim().startsWith('<div')) {
+                    return p;
+                }
+                return `<p style="margin-bottom: 10px;">${p}</p>`;
+            }).join('\n');
+            
+            return html;
+        }
+
+        async function fetchBrief(type) {
+            logEl.innerText = `RETRIEVING ${type.toUpperCase()} BRIEF...`;
+            speak(`Understood, Sir. Retrieving your ${type} briefing now. Please stand by.`);
+            
+            try {
+                const res = await fetch(`/api/brief?type=${type}`);
+                const data = await res.json();
+                
+                if (data.error) throw new Error(data.error);
+                
+                const briefText = data.brief;
+                logEl.innerText = "BRIEF SYNC COMPLETE";
+                
+                // Strip markdown formatting characters for clean speech
+                const speechText = briefText
+                    .replace(/#{1,3}\s*/g, '') // remove heading markers
+                    .replace(/\*\*/g, '')       // remove bold markers
+                    .replace(/[*`_]/g, '')      // remove other md chars
+                    .replace(/^-\s+/gm, '')     // remove bullet dashes
+                    .replace(/\s+/g, ' ')
+                    .trim();
+                
+                // Small delay so the "stand by" utterance can finish first
+                setTimeout(() => speak(speechText), 1800);
+                saveHistory(`${type} brief`, briefText);
+                
+            } catch (err) {
+                console.error("Brief error:", err);
+                logEl.innerText = "ERROR: BRIEF SYNC FAILED";
+                speak("I apologize, Sir. The briefing feed failed to load. Please check API configurations.");
+            }
+        }
+
 
         async function callAI(query) {
             logEl.innerText = "TRANSMITTING TO CORE...";

@@ -91,6 +91,170 @@ app.post('/api/ai', async (req, res) => {
     res.status(503).json({ error: "Neural link offline: No API keys or Quota exceeded on all cores." });
 });
 
+// Helper: Fetch & Parse CNBC Business and Finance feeds
+async function fetchCNBCNews() {
+    const feeds = [
+        "https://www.cnbc.com/id/10000664/device/rss/rss.html", // Finance
+        "https://www.cnbc.com/id/10001147/device/rss/rss.html"  // Business
+    ];
+    let allItems = [];
+    for (const url of feeds) {
+        try {
+            const res = await fetch(url);
+            const xml = await res.text();
+            const itemRegex = /<item>([\s\S]+?)<\/item>/g;
+            let match;
+            while ((match = itemRegex.exec(xml)) !== null) {
+                const itemContent = match[1];
+                const titleMatch = itemContent.match(/<title>([\s\S]+?)<\/title>/);
+                const linkMatch = itemContent.match(/<link>([\s\S]+?)<\/link>/);
+                const descMatch = itemContent.match(/<description>([\s\S]+?)<\/description>/);
+                if (titleMatch && linkMatch) {
+                    allItems.push({
+                        title: titleMatch[1].replace(/&apos;/g, "'").replace(/&quot;/g, '"').replace(/&amp;/g, '&').replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, '$1').trim(),
+                        link: linkMatch[1].trim(),
+                        description: descMatch ? descMatch[1].replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, '$1').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim() : ''
+                    });
+                }
+            }
+        } catch (e) {
+            console.error(`Error fetching CNBC feed ${url}:`, e.message);
+        }
+    }
+    return allItems.slice(0, 10);
+}
+
+// Helper: Fetch & Extract latest Morning Brew newsletter
+async function fetchMorningBrew() {
+    try {
+        const archiveRes = await fetch("https://www.morningbrew.com/daily/archive");
+        const archiveHtml = await archiveRes.text();
+        const issueRegex = /href="(\/issues\/[^"]+)"/g;
+        let match;
+        const issues = [];
+        while ((match = issueRegex.exec(archiveHtml)) !== null) {
+            issues.push(match[1]);
+        }
+        if (issues.length === 0) {
+            return "No recent Morning Brew issues found.";
+        }
+        const latestIssueUrl = "https://www.morningbrew.com" + issues[0];
+        const issueRes = await fetch(latestIssueUrl);
+        const issueHtml = await issueRes.text();
+        
+        const bodyMatch = issueHtml.match(/<body[^>]*>([\s\S]+?)<\/body>/i);
+        const bodyContent = bodyMatch ? bodyMatch[1] : issueHtml;
+        
+        let cleanText = bodyContent
+            .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '')
+            .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '')
+            .replace(/<[^>]+>/g, ' ')
+            .replace(/\s+/g, ' ')
+            .trim();
+        return cleanText.substring(0, 12000); // Limit to safe size
+    } catch (e) {
+        console.error("Error fetching Morning Brew:", e.message);
+        return "Failed to fetch Morning Brew content: " + e.message;
+    }
+}
+
+// Endpoint: Synthesize Morning/Afternoon brief
+app.get('/api/brief', async (req, res) => {
+    console.log("--- Generating Briefing ---");
+    const type = req.query.type === 'afternoon' ? 'Afternoon' : 'Morning';
+    
+    // Fetch data in parallel
+    const [cnbcItems, mbText] = await Promise.all([
+        fetchCNBCNews(),
+        fetchMorningBrew()
+    ]);
+    
+    // Format CNBC data for AI
+    const cnbcFormatted = cnbcItems.map((item, idx) => `${idx + 1}. Title: ${item.title}\n   Link: ${item.link}\n   Summary: ${item.description}`).join("\n\n");
+    
+    // Construct Prompt
+    const systemPrompt = `You are JARVIS, a highly sophisticated, premium personal AI assistant. 
+Your task is to synthesize a high-value, drama-free **${type} Briefing** for the user (Sir). 
+
+SOURCES:
+1. CNBC Finance & Business Feed:
+${cnbcFormatted}
+
+2. Latest Morning Brew Newsletter Content:
+${mbText.substring(0, 8000)}
+
+DIRECTIONS:
+- Provide a summary of the most critical financial, business, tech, and life news.
+- AVOID ALL political drama, elections, political campaigns, political gossip, international war/conflict commentary (unless it has direct, massive market/economic impact), and opinionated journalism. Focus purely on financial market data, corporate developments, wealth, career advice, and interesting life news.
+- Keep the tone professional, concise, intelligent, and in-character for JARVIS (e.g. 'Good morning, Sir. I have compiled and filtered today's financial and life updates. All systems are stable.').
+- Format the response beautifully using markdown with clear headings, bullet points, and short summaries.
+- Keep the brief dense but readable (around 250-350 words). Provide a concise 'JARVIS Executive Outlook' at the end.`;
+
+    const requestBody = {
+        contents: [{
+            parts: [{
+                text: systemPrompt
+            }]
+        }]
+    };
+
+    // 1. ATTEMPT GEMINI CORE
+    if (API_KEY) {
+        try {
+            const modelName = "gemini-1.5-flash";
+            const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${API_KEY}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(requestBody)
+            });
+
+            const data = await response.json();
+
+            if (!data.error && data.candidates?.[0]?.content?.parts?.[0]?.text) {
+                console.log(`SUCCESS: Gemini 1.5 Flash generated ${type} brief.`);
+                return res.json({ brief: data.candidates[0].content.parts[0].text });
+            }
+            console.warn("Gemini Error generating brief:", data.error?.message || "Unknown error");
+        } catch (error) {
+            console.error("Gemini exception during briefing synthesis:", error.message);
+        }
+    }
+
+    // 2. ATTEMPT GROQ FALLBACK
+    if (GROQ_API_KEY) {
+        try {
+            console.log("FALLBACK: Requesting Groq Llama 3 for brief...");
+            const groqResponse = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${GROQ_API_KEY}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    model: "llama-3.3-70b-versatile",
+                    messages: [
+                        { role: "system", content: "You are JARVIS, a highly efficient personal assistant." },
+                        { role: "user", content: systemPrompt }
+                    ],
+                    max_tokens: 800
+                })
+            });
+
+            const groqData = await groqResponse.json();
+
+            if (groqData.choices?.[0]?.message?.content) {
+                console.log(`SUCCESS: Groq fallback generated ${type} brief.`);
+                return res.json({ brief: groqData.choices[0].message.content });
+            }
+            console.error("Groq Error generating brief:", groqData.error?.message);
+        } catch (error) {
+            console.error("Groq exception during briefing synthesis:", error.message);
+        }
+    }
+
+    res.status(503).json({ error: "Briefing protocols offline: Neural links unstable." });
+});
+
 
 const PORT = process.env.PORT || 3000;
 
