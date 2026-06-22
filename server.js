@@ -12,28 +12,43 @@ const GROQ_API_KEY = process.env.GROQ_API_KEY;
 
 app.post('/api/ai', async (req, res) => {
     console.log("--- New AI Request Received ---");
-    const userMessage = req.body.contents?.[0]?.parts?.[0]?.text || "No input";
-    console.log("Input:", userMessage);
+
+    // history: array of { role: 'user'|'assistant', content: '...' } from frontend
+    const history = Array.isArray(req.body.history) ? req.body.history : [];
+    const userMessage = req.body.message || "No input";
+    console.log("Input:", userMessage, `| History turns: ${history.length}`);
+
+    const SYSTEM_PROMPT = "You are JARVIS, a highly efficient, professional personal AI assistant. You remember the full context of the current conversation. Give concise, intelligent responses. Address the user as Sir.";
 
     // 1. ATTEMPT PRIMARY CORE (GEMINI 1.5 FLASH)
     if (API_KEY) {
         try {
+            // Build Gemini multi-turn contents array from history
+            const geminiContents = history.map(h => ({
+                role: h.role === 'assistant' ? 'model' : 'user',
+                parts: [{ text: h.content }]
+            }));
+            // Append current user message
+            geminiContents.push({ role: 'user', parts: [{ text: userMessage }] });
+
             const modelName = "gemini-1.5-flash";
             const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${API_KEY}`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(req.body)
+                body: JSON.stringify({
+                    system_instruction: { parts: [{ text: SYSTEM_PROMPT }] },
+                    contents: geminiContents
+                })
             });
 
             const data = await response.json();
 
-            if (!data.error) {
+            if (!data.error && data.candidates?.[0]?.content?.parts?.[0]?.text) {
                 console.log("SUCCESS: Gemini 1.5 Flash Responded.");
                 return res.json(data);
             }
 
-            // Universal Fallback: Any error from Gemini triggers Groq attempt
-            console.warn("GEMINI CORE ERROR:", data.error.message);
+            console.warn("GEMINI CORE ERROR:", data.error?.message);
             console.warn("Initiating Universal Fallback Protocol to Groq...");
 
         } catch (error) {
@@ -46,6 +61,14 @@ app.post('/api/ai', async (req, res) => {
     if (GROQ_API_KEY) {
         try {
             console.log("FALLBACK: Initiating Groq (Llama 3.3) Backup Protocol...");
+
+            // Build full message thread with system prompt + history + current message
+            const groqMessages = [
+                { role: "system", content: SYSTEM_PROMPT },
+                ...history.map(h => ({ role: h.role, content: h.content })),
+                { role: "user", content: userMessage }
+            ];
+
             const groqResponse = await fetch("https://api.groq.com/openai/v1/chat/completions", {
                 method: 'POST',
                 headers: {
@@ -54,10 +77,7 @@ app.post('/api/ai', async (req, res) => {
                 },
                 body: JSON.stringify({
                     model: "llama-3.3-70b-versatile",
-                    messages: [
-                        { role: "system", content: "You are JARVIS, a highly efficient personal assistant. Give a concise, professional response." },
-                        { role: "user", content: userMessage }
-                    ],
+                    messages: groqMessages,
                     max_tokens: 500
                 })
             });
@@ -69,7 +89,7 @@ app.post('/api/ai', async (req, res) => {
                 return res.status(500).json({ error: "Groq Backup Core Offline: " + groqData.error.message });
             }
 
-            // Format Groq (OpenAI format) to match Gemini structure for frontend compatibility
+            // Format Groq response to match Gemini structure for frontend compatibility
             const formattedResponse = {
                 candidates: [{
                     content: {
@@ -87,7 +107,6 @@ app.post('/api/ai', async (req, res) => {
         }
     }
 
-    // Final failure if no keys or both failed
     res.status(503).json({ error: "Neural link offline: No API keys or Quota exceeded on all cores." });
 });
 

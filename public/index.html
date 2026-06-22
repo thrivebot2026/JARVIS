@@ -262,6 +262,8 @@
         let lastSpeechTime = 0; // Cooldown tracking
         let recognition;
         let voices = [];
+        let conversationHistory = []; // Multi-turn memory (last 10 exchanges)
+        const MAX_HISTORY_TURNS = 10;
 
         // --- CLOCK & DATE LOGIC (CST/CDT) ---
         function updateClock() {
@@ -476,12 +478,13 @@
                 speak(reply);
                 saveHistory(cmd, reply);
                 
-                // Auto-disable microphone for termination commands
+                // Auto-disable microphone and clear memory for termination commands
                 const terminationPhrases = [
                     "thanks", "thank you", "thanks jarvis", "thank you jarvis", 
                     "goodbye", "bye", "see you later"
                 ];
                 if (terminationPhrases.includes(query)) {
+                    conversationHistory = []; // Clear memory on session end
                     stopListening();
                 }
                 return;
@@ -640,7 +643,10 @@
                 const res = await fetch('/api/ai', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ contents: [{ parts: [{ text: `You are JARVIS, a highly efficient personal assistant. Give a concise, professional response to: ${query}` }] }] })
+                    body: JSON.stringify({
+                        message: query,
+                        history: conversationHistory.slice(-MAX_HISTORY_TURNS * 2) // last N turns
+                    })
                 });
                 
                 const data = await res.json();
@@ -649,7 +655,6 @@
                 if (data.error) {
                     const errorMsg = typeof data.error === 'string' ? data.error : (data.error.message || "Unknown Core Error");
                     
-                    // Handle Quota Errrors Specifically (If both cores fail)
                     if (errorMsg.toLowerCase().includes("quota") || errorMsg.toLowerCase().includes("limit")) {
                         const reply = "I apologize, Sir. You have exceeded your plan limits.";
                         speak(reply);
@@ -658,14 +663,12 @@
                         return;
                     }
 
-                    // For any generic model/API error, keep it short
                     const genericReply = "I apologize, Sir. Neural link unstable.";
                     speak(genericReply);
                     saveHistory("System Status", genericReply);
                     throw new Error(errorMsg);
                 }
 
-                // Robust Check for Candidates
                 if (!data.candidates || data.candidates.length === 0) {
                     const reply = "I apologize, Sir. My neural pathways are clouded. Please rephrase.";
                     speak(reply);
@@ -674,12 +677,20 @@
                 }
 
                 const reply = data.candidates[0].content.parts[0].text;
+
+                // Append to conversation memory
+                conversationHistory.push({ role: 'user', content: query });
+                conversationHistory.push({ role: 'assistant', content: reply });
+                // Cap memory to last MAX_HISTORY_TURNS exchanges
+                if (conversationHistory.length > MAX_HISTORY_TURNS * 2) {
+                    conversationHistory = conversationHistory.slice(-MAX_HISTORY_TURNS * 2);
+                }
+
                 speak(reply);
                 saveHistory(query, reply);
             } catch (err) {
                 console.error("AI Error:", err);
                 const shortError = "I apologize, Sir. Neural link offline.";
-                // Only speak if not already handled inside try
                 if (logEl.innerText !== "ERROR: Quota Exceeded") {
                     speak(shortError);
                     saveHistory("System Error", shortError);
