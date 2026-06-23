@@ -984,6 +984,11 @@
                     </div>
                     <div id="activity-result" style="margin-top:20px; text-align:center; font-size:1.2em; font-weight:bold;"></div>
                 `;
+            } else if (data.type === 'text_input') {
+                content.innerHTML += `
+                    <textarea id="interactiveTextInput" style="width:100%; height:150px; margin-top:20px; background:rgba(0,0,0,0.4); color:#00ff88; border:1px solid rgba(0, 255, 136, 0.3); border-radius:8px; padding:15px; font-family:'Fira Code', monospace; font-size:1em; resize:vertical;" placeholder="Type or paste your instructions here..."></textarea>
+                    <button class="code-btn" style="margin-top:20px; width:100%; padding:15px; font-size:1.2em;" onclick="submitTextInput()">SUBMIT</button>
+                `;
             }
             
             document.getElementById('interactive-panel').classList.add('open');
@@ -1027,6 +1032,14 @@
                 resEl.innerText = "INCORRECT.";
                 speak("Incorrect, Sir.");
             }
+        }
+
+        function submitTextInput() {
+            const textEl = document.getElementById('interactiveTextInput');
+            if (!textEl || !textEl.value.trim()) return;
+            const userInput = textEl.value.trim();
+            closeInteractivePanel();
+            callAI("Here is the requested input: \n" + userInput);
         }
 
         // --- INITIALIZATION ---
