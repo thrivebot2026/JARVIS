@@ -9,6 +9,9 @@ app.use(express.static('public'));
 
 const API_KEY = process.env.GEMINI_API_KEY;
 const GROQ_API_KEY = process.env.GROQ_API_KEY;
+const GROQ_API_KEY_2 = process.env.GROQ_API_KEY_2;
+const GROQ_API_KEY_3 = process.env.GROQ_API_KEY_3;
+const groqKeys = [GROQ_API_KEY, GROQ_API_KEY_2, GROQ_API_KEY_3].filter(Boolean);
 
 app.post('/api/ai', async (req, res) => {
     console.log("--- New AI Request Received ---");
@@ -88,53 +91,64 @@ Only provide ONE interactive block per response when appropriate. Encourage the 
     }
 
     // 2. ATTEMPT BACKUP CORE (GROQ / LLAMA 3)
-    if (GROQ_API_KEY) {
-        try {
-            console.log("FALLBACK: Initiating Groq (Llama 3.3) Backup Protocol...");
+    if (groqKeys.length > 0) {
+        console.log("FALLBACK: Initiating Groq (Llama 3.3) Backup Protocol...");
+        const groqMessages = [
+            { role: "system", content: SYSTEM_PROMPT },
+            ...history.map(h => ({ role: h.role, content: h.content })),
+            { role: "user", content: userMessage }
+        ];
 
-            // Build full message thread with system prompt + history + current message
-            const groqMessages = [
-                { role: "system", content: SYSTEM_PROMPT },
-                ...history.map(h => ({ role: h.role, content: h.content })),
-                { role: "user", content: userMessage }
-            ];
+        let lastGroqError = null;
 
-            const groqResponse = await fetch("https://api.groq.com/openai/v1/chat/completions", {
-                method: 'POST',
-                headers: {
-                    'Authorization': `Bearer ${GROQ_API_KEY}`,
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    model: "llama-3.3-70b-versatile",
-                    messages: groqMessages,
-                    max_tokens: 150
-                })
-            });
+        for (let i = 0; i < groqKeys.length; i++) {
+            const currentKey = groqKeys[i];
+            try {
+                console.log(`Attempting Groq Key ${i + 1}...`);
+                const groqResponse = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${currentKey}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        model: "llama-3.3-70b-versatile",
+                        messages: groqMessages,
+                        max_tokens: 150
+                    })
+                });
 
-            const groqData = await groqResponse.json();
+                const groqData = await groqResponse.json();
 
-            if (groqData.error) {
-                console.error("GROQ ERROR:", groqData.error.message);
-                return res.status(500).json({ error: "Groq Backup Core Offline: " + groqData.error.message });
+                if (groqData.error) {
+                    console.error(`GROQ ERROR on Key ${i + 1}:`, groqData.error.message);
+                    lastGroqError = groqData.error.message;
+                    // If it's a quota/rate-limit error or general failure, continue to the next key.
+                    continue; 
+                }
+
+                console.log(`SUCCESS: Groq Core Online via Key ${i + 1}.`);
+                // Format Groq response to match Gemini structure for frontend compatibility
+                const formattedResponse = {
+                    candidates: [{
+                        content: {
+                            parts: [{ text: groqData.choices[0].message.content }]
+                        }
+                    }]
+                };
+
+                return res.json(formattedResponse);
+
+            } catch (error) {
+                console.error(`GROQ EXCEPTION on Key ${i + 1}:`, error.message);
+                lastGroqError = error.message;
+                continue;
             }
-
-            // Format Groq response to match Gemini structure for frontend compatibility
-            const formattedResponse = {
-                candidates: [{
-                    content: {
-                        parts: [{ text: groqData.choices[0].message.content }]
-                    }
-                }]
-            };
-
-            console.log("SUCCESS: Groq Fallback Core Responded.");
-            return res.json(formattedResponse);
-
-        } catch (error) {
-            console.error("GROQ CORE EXCEPTION:", error.message);
-            return res.status(500).json({ error: "All Neural Links Severed." });
         }
+
+        // If all keys fail
+        console.error("ALL GROQ BACKUP KEYS EXHAUSTED.");
+        return res.status(500).json({ error: "All Backup Cores Offline. Last Error: " + lastGroqError });
     }
 
     res.status(503).json({ error: "Neural link offline: No API keys or Quota exceeded on all cores." });
