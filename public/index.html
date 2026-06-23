@@ -833,6 +833,64 @@
                 return;
             }
 
+            // --- CLIPBOARD MANAGER ---
+            if (query.startsWith("save ") && (query.includes(" to clipboard") || query.includes(" to my clipboard"))) {
+                // We use the original 'cmd' to preserve casing for the clipboard
+                const textToSave = cmd.replace(/jarvis,?/gi, "").replace(/save/i, "").replace(/to my clipboard/i, "").replace(/to clipboard/i, "").trim();
+                
+                try {
+                    await navigator.clipboard.writeText(textToSave);
+                    localStorage.setItem('virtualClipboard', textToSave);
+                    speak(`I have saved that to your clipboard, Sir.`);
+                    saveHistory(cmd, `Saved to clipboard: ${textToSave}`);
+                } catch(e) {
+                    // Fallback to virtual clipboard if browser blocks it
+                    localStorage.setItem('virtualClipboard', textToSave);
+                    speak(`I have saved that to your virtual clipboard, Sir.`);
+                    saveHistory(cmd, `Saved to virtual clipboard: ${textToSave}`);
+                }
+                return;
+            }
+
+            if (query === "what is in my clipboard" || query === "read my clipboard" || query === "read clipboard") {
+                try {
+                    const text = await navigator.clipboard.readText();
+                    if (text) {
+                        speak(`Your clipboard says: ${text}`);
+                        saveHistory(cmd, `Read clipboard: ${text}`);
+                    } else {
+                        const vText = localStorage.getItem('virtualClipboard');
+                        if (vText) {
+                            speak(`Your system clipboard is empty, but your virtual clipboard says: ${vText}`);
+                            saveHistory(cmd, `Read virtual clipboard: ${vText}`);
+                        } else {
+                            speak("Your clipboard is currently empty, Sir.");
+                            saveHistory(cmd, "Clipboard empty");
+                        }
+                    }
+                } catch(e) {
+                    const vText = localStorage.getItem('virtualClipboard');
+                    if (vText) {
+                        speak(`Your virtual clipboard says: ${vText}`);
+                        saveHistory(cmd, `Read virtual clipboard: ${vText}`);
+                    } else {
+                        speak("Browser security is blocking system clipboard access, and your virtual clipboard is empty, Sir.");
+                        saveHistory(cmd, "Clipboard error/empty");
+                    }
+                }
+                return;
+            }
+            
+            if (query === "clear clipboard" || query === "clear my clipboard") {
+                try {
+                    await navigator.clipboard.writeText("");
+                } catch(e) {}
+                localStorage.removeItem('virtualClipboard');
+                speak("Clipboard cleared, Sir.");
+                saveHistory(cmd, "Clipboard cleared");
+                return;
+            }
+
             // --- WEATHER RADAR COMMANDS ---
             if (query === "show me the weather radar" || query === "show weather radar" || query === "weather radar" || query === "open weather radar" || query === "open radar") {
                 logEl.innerText = "OPENING WEATHER RADAR...";
