@@ -833,6 +833,17 @@
                 return;
             }
 
+            // --- WEATHER RADAR COMMANDS ---
+            if (query === "show me the weather radar" || query === "show weather radar" || query === "weather radar" || query === "open weather radar" || query === "open radar") {
+                logEl.innerText = "OPENING WEATHER RADAR...";
+                speak("Displaying the live weather radar for Eden Prairie, Minnesota, Sir.");
+                saveHistory(cmd, "Weather Radar opened.");
+                
+                const url = "https://embed.windy.com/embed2.html?lat=44.8547&lon=-93.4708&detailLat=44.8547&detailLon=-93.4708&width=650&height=450&zoom=8&level=surface&overlay=radar&product=radar&menu=&message=&marker=true&calendar=now&city=&type=map&location=coordinates&detail=&metricWind=mph&metricTemp=%C2%B0F&radarRange=-1";
+                openIframePanel("WEATHER RADAR (EDEN PRAIRIE, MN)", url);
+                return;
+            }
+
             // --- CURRENCY CONVERTER COMMANDS ---
             const currMatch = query.match(/convert ([\d.]+) (.+) to (.+)/);
             if (currMatch) {
