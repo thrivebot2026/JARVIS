@@ -635,13 +635,20 @@
                 return null;
             }
             try {
-                const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" } });
+                const stream = await navigator.mediaDevices.getUserMedia({ video: true });
                 const video = document.createElement('video');
                 video.srcObject = stream;
+                video.muted = true;
+                video.playsInline = true;
                 await new Promise(resolve => {
-                    video.onloadedmetadata = () => { video.play(); resolve(); };
+                    video.onloadedmetadata = () => {
+                        video.width = video.videoWidth;
+                        video.height = video.videoHeight;
+                        video.play(); 
+                        resolve(); 
+                    };
                 });
-                await new Promise(r => setTimeout(r, 300)); // stabilize
+                await new Promise(r => setTimeout(r, 500)); // stabilize camera
                 
                 const detection = await faceapi.detectSingleFace(video).withFaceLandmarks().withFaceDescriptor();
                 stream.getTracks().forEach(track => track.stop());
