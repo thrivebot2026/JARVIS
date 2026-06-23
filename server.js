@@ -207,7 +207,7 @@ DIRECTIONS:
 - AVOID ALL political drama, elections, political campaigns, political gossip, international war/conflict commentary (unless it has direct, massive market/economic impact), and opinionated journalism. Focus purely on financial market data, corporate developments, wealth, career advice, and interesting life news.
 - Keep the tone professional, concise, intelligent, and in-character for JARVIS (e.g. 'Good morning, Sir. I have compiled and filtered today's financial and life updates. All systems are stable.').
 - Format the response beautifully using markdown with clear headings, bullet points, and short summaries.
-- Keep the brief dense but readable (around 250-350 words). Provide a concise 'JARVIS Executive Outlook' at the end.`;
+- Keep the brief under 5 sentences in total. Make it extremely short, dense, and readable. Provide a concise 'JARVIS Executive Outlook' at the end.`;
 
     const requestBody = {
         contents: [{
