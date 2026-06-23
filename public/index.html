@@ -1001,7 +1001,14 @@
                 const utter = new SpeechSynthesisUtterance(chunks[chunkIndex]);
                 utter.voice = getVoiceForLang(langCode);
                 utter.lang = langCode;
-                utter.rate = 1.3;
+                
+                // Slow down for Marathi (or Hindi if used as fallback)
+                if (langCode === 'mr' || langCode === 'hi') {
+                    utter.rate = 0.9;
+                } else {
+                    utter.rate = 1.3;
+                }
+                
                 utter.pitch = 0.9;
                 utter.onend = () => {
                     if (globalSpeechId !== currentSpeechId || !isSpeaking) return; 
