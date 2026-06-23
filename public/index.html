@@ -389,10 +389,11 @@
     <!-- MEDIA PANEL -->
     <div id="media-panel">
         <div style="padding: 10px; background: rgba(0, 195, 255, 0.1); border-bottom: 1px solid var(--primary-blue); display: flex; justify-content: space-between; align-items: center;">
-            <span style="color: var(--primary-blue); font-weight: bold; font-family: 'Orbitron'; font-size: 0.8em; letter-spacing: 1px;">MEDIA PROTOCOL</span>
+            <span id="media-title" style="color: var(--primary-blue); font-weight: bold; font-family: 'Orbitron'; font-size: 0.8em; letter-spacing: 1px;">MEDIA PROTOCOL</span>
             <button style="background:none; border:none; color:var(--primary-blue); cursor:pointer; font-size: 1.2em;" onclick="closeMediaPanel()">✕</button>
         </div>
         <div id="yt-player" style="flex: 1;"></div>
+        <div id="iframe-container" style="display: none; flex: 1; width: 100%; height: 100%;"></div>
     </div>
 
     <div class="footer-info">
@@ -720,11 +721,48 @@
                 return;
             }
 
-            if (query === "close video" || query === "stop video") {
+            if (query === "close video" || query === "stop video" || query === "close tracker" || query === "close panel") {
                 closeMediaPanel();
-                speak("Closing media panel, Sir.");
-                saveHistory(cmd, "Video closed.");
+                speak("Closing panel, Sir.");
+                saveHistory(cmd, "Panel closed.");
                 return;
+            }
+
+            // --- FLIGHT TRACKER COMMANDS ---
+            if (query.startsWith("track flight ") || query.startsWith("track ") || query.includes("where is flight ")) {
+                const search = query.replace(/jarvis |track flight |track |where is flight /, "").trim();
+                const airlines = {
+                    "delta": "DAL",
+                    "american": "AAL",
+                    "united": "UAL",
+                    "southwest": "SWA",
+                    "spirit": "NKS",
+                    "jetblue": "JBU",
+                    "alaska": "ASA",
+                    "frontier": "FFT"
+                };
+                
+                let icao = "";
+                let fltNum = "";
+                
+                for (let key in airlines) {
+                    if (search.includes(key)) {
+                        icao = airlines[key];
+                        fltNum = search.replace(key, "").replace(/flight/g, "").trim().replace(/\s/g, "");
+                        break;
+                    }
+                }
+                
+                if (icao && fltNum) {
+                    const callsign = icao + fltNum;
+                    logEl.innerText = "OPENING FLIGHT RADAR...";
+                    speak(`Tracking flight ${callsign.toUpperCase()} on the global radar, Sir.`);
+                    saveHistory(cmd, `Tracking: ${callsign.toUpperCase()}`);
+                    
+                    const url = `https://www.radarbox.com/data/flights/${callsign.toUpperCase()}`;
+                    openIframePanel("FLIGHT TRACKER", url);
+                    return;
+                }
             }
 
             // --- LOCAL CONVERSATIONAL RESPONSES ---
@@ -1206,6 +1244,10 @@
         }
 
         function playYouTubeVideo(videoId) {
+            document.getElementById('media-title').innerText = "MEDIA PROTOCOL";
+            document.getElementById('iframe-container').style.display = 'none';
+            document.getElementById('yt-player').style.display = 'block';
+
             const panel = document.getElementById('media-panel');
             panel.classList.add('open');
             if (ytPlayer) {
@@ -1236,6 +1278,22 @@
             if (ytPlayer && ytPlayer.stopVideo) {
                 ytPlayer.stopVideo();
             }
+            document.getElementById('iframe-container').innerHTML = '';
+        }
+
+        function openIframePanel(title, url) {
+            document.getElementById('media-title').innerText = title;
+            document.getElementById('yt-player').style.display = 'none';
+            const iframeContainer = document.getElementById('iframe-container');
+            iframeContainer.style.display = 'block';
+            iframeContainer.innerHTML = `<iframe src="${url}" style="width:100%; height:100%; border:none; border-radius: 0 0 12px 12px;"></iframe>`;
+            
+            if (ytPlayer && ytPlayer.stopVideo) {
+                ytPlayer.stopVideo();
+            }
+            
+            const panel = document.getElementById('media-panel');
+            panel.classList.add('open');
         }
 
         // --- INITIALIZATION ---
