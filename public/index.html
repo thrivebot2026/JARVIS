@@ -215,6 +215,32 @@
             color: #fff;
             font-size: 0.9em;
             white-space: pre-wrap;
+        }
+
+        /* --- MEDIA PANEL --- */
+        #media-panel {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            width: 450px;
+            height: 253px;
+            background: rgba(0,0,0,0.9);
+            border: 1px solid var(--primary-blue);
+            border-radius: 12px;
+            box-shadow: 0 0 25px rgba(0, 195, 255, 0.4);
+            z-index: 1000;
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            transform: translateY(200%);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+        #media-panel.open { transform: translateY(0); }
+        #media-panel.fullscreen {
+            width: 80vw;
+            height: 80vh;
+            bottom: 10vh;
+            right: 10vw;
         }        /* --- ANIMATIONS --- */
         @keyframes rotate { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
         @keyframes rotate-reverse { from { transform: rotate(360deg); } to { transform: rotate(0deg); } }
@@ -659,6 +685,47 @@
                 }
                 return;
             }
+            // --- YOUTUBE MEDIA COMMANDS ---
+            if ((query.includes("play ") && query.includes(" on youtube")) || query.includes("search youtube for ") || query.includes("show me a video about ") || query.includes("youtube video about ")) {
+                let searchTopic = query.replace(/jarvis |play | on youtube|search youtube for |show me a video about |youtube video about /, "").trim();
+                logEl.innerText = "SEARCHING YOUTUBE...";
+                speak(`Searching YouTube for ${searchTopic}, Sir. Please stand by.`);
+                try {
+                    const res = await fetch(`/api/youtube?q=${encodeURIComponent(searchTopic)}`);
+                    const data = await res.json();
+                    if (data.videoId) {
+                        saveHistory(cmd, `Playing: ${data.title}`);
+                        playYouTubeVideo(data.videoId);
+                        speak("Displaying video now, Sir.");
+                    } else {
+                        throw new Error("No video found.");
+                    }
+                } catch(e) {
+                    speak("I apologize, Sir. I could not locate a video for that query.");
+                }
+                return;
+            }
+
+            if (query === "make the video bigger" || query === "maximize video" || query === "fullscreen video") {
+                document.getElementById('media-panel').classList.add('fullscreen');
+                speak("Maximizing media panel, Sir.");
+                saveHistory(cmd, "Video maximized.");
+                return;
+            }
+
+            if (query === "make the video smaller" || query === "minimize video" || query === "shrink video") {
+                document.getElementById('media-panel').classList.remove('fullscreen');
+                speak("Restoring media panel size, Sir.");
+                saveHistory(cmd, "Video restored.");
+                return;
+            }
+
+            if (query === "close video" || query === "stop video") {
+                closeMediaPanel();
+                speak("Closing media panel, Sir.");
+                saveHistory(cmd, "Video closed.");
+                return;
+            }
 
             // --- LOCAL CONVERSATIONAL RESPONSES ---
             const conversational = {
@@ -1077,8 +1144,8 @@
                 `;
             } else if (data.type === 'text_input') {
                 content.innerHTML += `
-                    <textarea id="interactiveTextInput" style="width:100%; height:150px; margin-top:20px; background:rgba(0,0,0,0.4); color:#00ff88; border:1px solid rgba(0, 255, 136, 0.3); border-radius:8px; padding:15px; font-family:'Fira Code', monospace; font-size:1em; resize:vertical;" placeholder="Type or paste your instructions here..."></textarea>
-                    <button class="code-btn" style="margin-top:20px; width:100%; padding:15px; font-size:1.2em;" onclick="submitTextInput()">SUBMIT</button>
+                    <textarea id="interactiveTextInput" style="box-sizing: border-box; width:100%; height:150px; margin-top:10px; background:rgba(0,0,0,0.4); color:#00ff88; border:1px solid rgba(0, 255, 136, 0.3); border-radius:8px; padding:15px; font-family:'Fira Code', monospace; font-size:1em; resize:vertical;" placeholder="Type or paste your instructions here..."></textarea>
+                    <button class="code-btn" style="margin-top:10px; width:100%; padding:15px; font-size:1.2em;" onclick="submitTextInput()">SUBMIT</button>
                 `;
             }
             
@@ -1131,6 +1198,44 @@
             const userInput = textEl.value.trim();
             closeInteractivePanel();
             callAI("Here is the requested input: \n" + userInput);
+        }
+        // --- YOUTUBE MEDIA PLAYER LOGIC ---
+        let ytPlayer;
+        function onYouTubeIframeAPIReady() {
+            // API loaded, ready to instantiate
+        }
+
+        function playYouTubeVideo(videoId) {
+            const panel = document.getElementById('media-panel');
+            panel.classList.add('open');
+            if (ytPlayer) {
+                ytPlayer.loadVideoById(videoId);
+            } else {
+                ytPlayer = new YT.Player('yt-player', {
+                    height: '100%',
+                    width: '100%',
+                    videoId: videoId,
+                    playerVars: { 'autoplay': 1, 'controls': 1 },
+                    events: {
+                        'onStateChange': onPlayerStateChange
+                    }
+                });
+            }
+        }
+
+        function onPlayerStateChange(event) {
+            if (event.data === YT.PlayerState.ENDED) {
+                closeMediaPanel();
+            }
+        }
+
+        function closeMediaPanel() {
+            const panel = document.getElementById('media-panel');
+            panel.classList.remove('open');
+            panel.classList.remove('fullscreen');
+            if (ytPlayer && ytPlayer.stopVideo) {
+                ytPlayer.stopVideo();
+            }
         }
 
         // --- INITIALIZATION ---
