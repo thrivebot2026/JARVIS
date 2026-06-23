@@ -220,7 +220,7 @@ Only provide ONE interactive block per response when appropriate. Encourage the 
             let orModel = "meta-llama/llama-3-8b-instruct:free";
 
             if (req.body.image) {
-                orModel = "meta-llama/llama-3.2-11b-vision-instruct:free";
+                orModel = "nvidia/nemotron-nano-12b-v2-vl:free";
                 let userContentArray = [];
                 
                 if (req.body.referenceImage) {
