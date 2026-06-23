@@ -771,7 +771,7 @@
                 let speechText = reply;
                 
                 // Check for code blocks
-                const codeRegex = /```[\w]*\n([\s\S]*?)```/;
+                const codeRegex = /```(?:[^\n]*\n)?([\s\S]*?)```/;
                 const match = reply.match(codeRegex);
                 
                 if (match) {
