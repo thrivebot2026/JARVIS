@@ -462,9 +462,14 @@
         }
 
         let keepAliveInterval = null;
+        let globalSpeechId = 0;
 
         function speak(text) {
-            // Cancel any current speech immediately (interruptible)
+            globalSpeechId++;
+            const currentSpeechId = globalSpeechId;
+            
+            // Abort previous TTS queue if one is running
+            isSpeaking = false;
             window.speechSynthesis.cancel();
             if (keepAliveInterval) { clearInterval(keepAliveInterval); keepAliveInterval = null; }
 
@@ -484,19 +489,21 @@
             }, 10000);
 
             function speakNext() {
-                if (!isSpeaking || chunkIndex >= chunks.length) {
-                    // All chunks done or interrupted
-                    clearInterval(keepAliveInterval);
-                    keepAliveInterval = null;
-                    isSpeaking = false;
-                    lastSpeechTime = Date.now();
-                    wavesEl.classList.remove('active-voice');
-                    logEl.innerText = "SYSTEM COOLDOWN (3S)...";
-                    setTimeout(() => {
-                        if (!isSpeaking && Date.now() - lastSpeechTime >= 3000) {
-                            logEl.innerText = "READY";
-                        }
-                    }, 3000);
+                if (globalSpeechId !== currentSpeechId || !isSpeaking || chunkIndex >= chunks.length) {
+                    // All chunks done or interrupted or overridden by new speech
+                    if (globalSpeechId === currentSpeechId) {
+                        clearInterval(keepAliveInterval);
+                        keepAliveInterval = null;
+                        isSpeaking = false;
+                        lastSpeechTime = Date.now();
+                        wavesEl.classList.remove('active-voice');
+                        logEl.innerText = "SYSTEM COOLDOWN (3S)...";
+                        setTimeout(() => {
+                            if (!isSpeaking && Date.now() - lastSpeechTime >= 3000) {
+                                logEl.innerText = "READY";
+                            }
+                        }, 3000);
+                    }
                     return;
                 }
 
@@ -505,12 +512,12 @@
                 utter.rate = 1.3;
                 utter.pitch = 0.9;
                 utter.onend = () => {
-                    if (!isSpeaking) return; // If interrupted, don't continue to next chunk
+                    if (globalSpeechId !== currentSpeechId || !isSpeaking) return; 
                     chunkIndex++;
                     speakNext();
                 };
                 utter.onerror = (e) => {
-                    if (!isSpeaking) return; // If interrupted, halt queue
+                    if (globalSpeechId !== currentSpeechId || !isSpeaking) return; 
                     console.warn('TTS chunk error:', e);
                     chunkIndex++;
                     speakNext();
