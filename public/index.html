@@ -787,10 +787,10 @@
                 let reply = data.candidates[0].content.parts[0].text;
                 
                 let langCode = 'en';
-                const langMatch = reply.match(/^\[LANG:([a-z]{2})\]/i);
+                const langMatch = reply.match(/\[LANG:\s*([a-z]{2})\s*\]/i);
                 if (langMatch) {
                     langCode = langMatch[1].toLowerCase();
-                    reply = reply.replace(/^\[LANG:[a-z]{2}\]\s*/i, '').trim();
+                    reply = reply.replace(/\[LANG:\s*[a-z]{2}\s*\]\s*/i, '').trim();
                 }
 
                 let speechText = reply;
