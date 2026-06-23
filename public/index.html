@@ -951,6 +951,19 @@
                 return;
             }
 
+            // --- BLUETOOTH MANAGER ---
+            if (query.includes("bluetooth") && (query.includes("connect") || query.includes("scan") || query.includes("search") || query.includes("pair"))) {
+                speak("Due to browser security protocols, I cannot initiate a Bluetooth scan entirely via voice. Please click the button on your screen to authorize the scan, Sir.");
+                saveHistory(cmd, "Requested Bluetooth Scan.");
+                renderInteractiveActivity({
+                    type: "button",
+                    question: "Bluetooth Device Scan",
+                    action: "triggerBluetoothScan",
+                    text: "AUTHORIZE BLUETOOTH SCAN"
+                });
+                return;
+            }
+
             // --- WEATHER RADAR COMMANDS ---
             if (query === "show me the weather radar" || query === "show weather radar" || query === "weather radar" || query === "open weather radar" || query === "open radar") {
                 logEl.innerText = "OPENING WEATHER RADAR...";
@@ -1478,6 +1491,11 @@
                     <textarea id="interactiveTextInput" style="box-sizing: border-box; width:100%; height:150px; margin-top:10px; background:rgba(0,0,0,0.4); color:#00ff88; border:1px solid rgba(0, 255, 136, 0.3); border-radius:8px; padding:15px; font-family:'Fira Code', monospace; font-size:1em; resize:vertical;" placeholder="Type or paste your instructions here..."></textarea>
                     <button class="code-btn" style="margin-top:10px; width:100%; padding:15px; font-size:1.2em;" onclick="submitTextInput()">SUBMIT</button>
                 `;
+            } else if (data.type === 'button') {
+                content.innerHTML += `
+                    <button class="code-btn" style="margin-top:20px; width:100%; padding:15px; font-size:1.2em;" onclick="${data.action}()">${data.text}</button>
+                    <div id="activity-result" style="margin-top:20px; text-align:center; font-size:1.2em; font-weight:bold;"></div>
+                `;
             }
             
             document.getElementById('interactive-panel').classList.add('open');
@@ -1529,6 +1547,30 @@
             const userInput = textEl.value.trim();
             closeInteractivePanel();
             callAI("Here is the requested input: \n" + userInput);
+        }
+
+        async function triggerBluetoothScan() {
+            try {
+                const device = await navigator.bluetooth.requestDevice({
+                    acceptAllDevices: true
+                });
+                
+                const resEl = document.getElementById('activity-result');
+                resEl.style.color = '#00ff88';
+                resEl.innerText = `PAIRED: ${device.name || 'Unknown Device'}`;
+                
+                speak(`Successfully paired with ${device.name || "an unknown device"}, Sir.`);
+                saveHistory("Bluetooth Scan", `Paired: ${device.name}`);
+                
+                setTimeout(() => closeInteractivePanel(), 3000);
+            } catch(e) {
+                console.error("Bluetooth pairing error:", e);
+                const resEl = document.getElementById('activity-result');
+                resEl.style.color = '#ff3366';
+                resEl.innerText = "PAIRING CANCELLED OR FAILED";
+                speak("Bluetooth pairing was cancelled or failed, Sir.");
+                saveHistory("Bluetooth Scan", "Pairing failed.");
+            }
         }
         // --- YOUTUBE MEDIA PLAYER LOGIC ---
         let ytPlayer;
