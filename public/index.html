@@ -313,12 +313,17 @@
             recognition.interimResults = false;
             recognition.lang = 'en-US';
 
-            recognition.onresult = (event) => {
-                // Ignore input if JARVIS is speaking or if we're in the 3s cooldown
-                if (isSpeaking || (Date.now() - lastSpeechTime < 3000)) {
-                    return;
+            recognition.onspeechstart = () => {
+                // If JARVIS is currently speaking and user speaks, interrupt him immediately
+                if (isSpeaking) {
+                    window.speechSynthesis.cancel();
+                    isSpeaking = false;
+                    logEl.innerText = "JARVIS INTERRUPTED";
+                    wavesEl.classList.remove('active-voice');
                 }
+            };
 
+            recognition.onresult = (event) => {
                 const transcript = event.results[event.results.length - 1][0].transcript.trim();
                 if (!transcript) return; // Prevent empty commands
 
