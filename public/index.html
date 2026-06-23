@@ -1238,32 +1238,42 @@
         }
 
         function evaluateMath(textarea) {
+            const start = textarea.selectionStart;
+            const end = textarea.selectionEnd;
+            const oldLength = textarea.value.length;
             const lines = textarea.value.split('\n');
             let modified = false;
             
             for (let i = 0; i < lines.length; i++) {
                 let line = lines[i];
-                // Match lines ending with "=" where the equal sign is the last non-whitespace char
                 if (line.trim().endsWith('=')) {
-                    // Extract the expression before "="
                     let expr = line.substring(0, line.lastIndexOf('=')).trim();
+                    
+                    // Pre-process human-friendly inputs
+                    expr = expr.replace(/x/gi, '*');
+                    expr = expr.replace(/÷/g, '/');
+                    expr = expr.replace(/,/g, '');
+                    // Handle percentages: replace "number%" with "number/100"
+                    expr = expr.replace(/(\d+(?:\.\d+)?)%/g, '($1/100)');
+                    
                     try {
-                        // Very simple/naive eval for math expressions.
-                        // Filter to allow only numbers, basic operators, and spaces to prevent malicious eval
                         if (/^[0-9+\-*/().\s]*$/.test(expr) && expr.length > 0) {
                             let result = Function('return ' + expr)();
-                            // Append the result
-                            lines[i] = line + " " + result;
-                            modified = true;
+                            if (result !== undefined && !isNaN(result)) {
+                                lines[i] = line + " " + result;
+                                modified = true;
+                            }
                         }
                     } catch (e) {
-                        // ignore invalid math expressions
+                        // ignore invalid expressions silently
                     }
                 }
             }
             
             if (modified) {
                 textarea.value = lines.join('\n');
+                const diff = textarea.value.length - oldLength;
+                textarea.setSelectionRange(start + diff, end + diff);
             }
         }
 
