@@ -1356,7 +1356,7 @@
 
                 // Check for code blocks
                 const codeRegex = /```(?:[^\n]*\n)?([\s\S]*?)```/;
-                const match = reply.match(codeRegex);
+                const match = speechText.match(codeRegex);
                 
                 if (match) {
                     const codeOnly = match[1].trim();
@@ -1364,7 +1364,7 @@
                     document.getElementById('code-panel').classList.add('open');
                     
                     // Strip the code block out of the spoken text
-                    speechText = reply.replace(/```[\s\S]*?```/g, " I have displayed the requested code on your screen, Sir. ").trim();
+                    speechText = speechText.replace(/```[\s\S]*?```/g, " I have displayed the requested code on your screen, Sir. ").trim();
                     if (!speechText) { speechText = "I have displayed the requested code on your screen, Sir."; }
                 } else {
                     document.getElementById('code-panel').classList.remove('open');
