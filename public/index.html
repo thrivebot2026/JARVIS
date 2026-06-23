@@ -651,7 +651,7 @@
             }
 
             if (query.includes("token status") || query.includes("system status") || query.includes("api status")) {
-                speak("Running full API diagnostics. Please stand by, Sir.");
+                logEl.innerText = "RUNNING API DIAGNOSTICS...";
                 try {
                     const res = await fetch('/api/status');
                     const data = await res.json();
