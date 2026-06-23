@@ -119,26 +119,34 @@ Only provide ONE interactive block per response when appropriate. Encourage the 
             console.warn("GEMINI CORE ERROR:", data.error?.message);
             
             if (req.body.image) {
-                console.error("CRITICAL: Vision request failed. Cannot fallback to text-only models. Aborting.");
-                return res.status(503).json({ error: "Vision core offline or quota exceeded. Cannot perform visual analysis." });
+                console.error("CRITICAL: Vision request failed. Groq cannot process images.");
+                if (OPENROUTER_API_KEY) {
+                    console.warn("Initiating Vision Fallback to OpenRouter...");
+                } else {
+                    return res.status(503).json({ error: "Vision core offline or quota exceeded. Cannot perform visual analysis." });
+                }
+            } else {
+                console.warn("Initiating Universal Fallback Protocol to Groq...");
             }
-
-            console.warn("Initiating Universal Fallback Protocol to Groq...");
 
         } catch (error) {
             console.error("GEMINI CORE EXCEPTION:", error.message);
             
             if (req.body.image) {
-                console.error("CRITICAL: Vision request failed. Cannot fallback to text-only models. Aborting.");
-                return res.status(503).json({ error: "Vision core exception. Cannot perform visual analysis." });
+                console.error("CRITICAL: Vision request failed. Groq cannot process images.");
+                if (OPENROUTER_API_KEY) {
+                    console.warn("Initiating Vision Fallback to OpenRouter...");
+                } else {
+                    return res.status(503).json({ error: "Vision core exception. Cannot perform visual analysis." });
+                }
+            } else {
+                console.warn("Gemini Link Severed. Initiating Fallback...");
             }
-            
-            console.warn("Gemini Link Severed. Initiating Fallback...");
         }
     }
 
     // 2. ATTEMPT BACKUP CORE (GROQ / LLAMA 3)
-    if (groqKeys.length > 0) {
+    if (groqKeys.length > 0 && !req.body.image) {
         console.log("FALLBACK: Initiating Groq (Llama 3.3) Backup Protocol...");
         const groqMessages = [
             { role: "system", content: SYSTEM_PROMPT },
@@ -204,11 +212,29 @@ Only provide ONE interactive block per response when appropriate. Encourage the 
     if (OPENROUTER_API_KEY) {
         try {
             console.log("FALLBACK: Initiating OpenRouter Tertiary Protocol...");
-            const openRouterMessages = [
+            let openRouterMessages = [
                 { role: "system", content: SYSTEM_PROMPT },
-                ...history.map(h => ({ role: h.role, content: h.content })),
-                { role: "user", content: userMessage }
+                ...history.map(h => ({ role: h.role, content: h.content }))
             ];
+            
+            let orModel = "meta-llama/llama-3-8b-instruct:free";
+
+            if (req.body.image) {
+                orModel = "google/gemini-2.0-flash-exp:free";
+                let userContentArray = [];
+                
+                if (req.body.referenceImage) {
+                    userContentArray.push({ type: "text", text: "SYSTEM DIRECTIVE: You are an ultra-strict, military-grade biometric security AI. The image below is the registered anchor reference photo of the authorized user. The other image is the live camera feed. You MUST aggressively compare the facial bone structure, eye shape, nose shape, and overall biometric signature. If there is ANY doubt, or if it is clearly a different person (e.g. sibling, friend, different gender, different age), you MUST REJECT them with a severe security warning. DO NOT be polite if it's the wrong person. ONLY if you are 100% certain it is the exact same person, welcome them back." });
+                    userContentArray.push({ type: "image_url", image_url: { url: req.body.referenceImage } });
+                }
+                
+                userContentArray.push({ type: "text", text: userMessage });
+                userContentArray.push({ type: "image_url", image_url: { url: req.body.image } });
+                
+                openRouterMessages.push({ role: "user", content: userContentArray });
+            } else {
+                openRouterMessages.push({ role: "user", content: userMessage });
+            }
 
             const orResponse = await fetch("https://openrouter.ai/api/v1/chat/completions", {
                 method: 'POST',
@@ -218,9 +244,9 @@ Only provide ONE interactive block per response when appropriate. Encourage the 
                     'Content-Type': 'application/json'
                 },
                 body: JSON.stringify({
-                    model: "meta-llama/llama-3-8b-instruct:free", // Using a solid free model on OpenRouter as tertiary backup
+                    model: orModel,
                     messages: openRouterMessages,
-                    max_tokens: 150
+                    max_tokens: 300
                 })
             });
 
