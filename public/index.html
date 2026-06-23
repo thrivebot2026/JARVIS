@@ -596,9 +596,58 @@
         }
 
         // --- COMMAND HANDLING ---
+        let workspaceRoutines = JSON.parse(localStorage.getItem('workspaceRoutines') || '{}');
+        let routineBeingCreated = null;
+
         async function handleCommand(cmd) {
             const query = cmd.toLowerCase().replace(/[.,\/#!$%\^&\*;:{}=\-_`~()]/g,"").trim(); // Clean input
             
+            // --- WORKSPACE ROUTINE CREATION STATE ---
+            if (routineBeingCreated) {
+                // Extract websites from the user's spoken list
+                // For example: "open youtube canvas and schoology" or "wikipedia dot com and netflix"
+                const ignoreWords = ['open', 'and', 'the', 'website', 'websites', 'com', 'dot', 'for', 'me'];
+                const sites = query.split(' ')
+                    .filter(w => w.length > 2 && !ignoreWords.includes(w))
+                    .map(w => w.replace(/dotcom/g, ''));
+                
+                if (sites.length > 0) {
+                    workspaceRoutines[routineBeingCreated] = sites;
+                    localStorage.setItem('workspaceRoutines', JSON.stringify(workspaceRoutines));
+                    speak(`Saved. I will now open ${sites.join(' and ')} whenever you activate the ${routineBeingCreated} routine.`);
+                    saveHistory(cmd, "Routine Saved.");
+                } else {
+                    speak("I didn't catch any valid websites, Sir. Cancelling routine creation.");
+                    saveHistory(cmd, "Routine Creation Cancelled.");
+                }
+                routineBeingCreated = null;
+                return;
+            }
+
+            // --- WORKSPACE ROUTINE COMMANDS ---
+            if (query.startsWith("create study mode ") || query.startsWith("create routine ")) {
+                const name = query.replace(/create study mode |create routine /, "").trim();
+                routineBeingCreated = name;
+                speak(`Understood. What websites should I open for ${name}?`);
+                saveHistory(cmd, "Awaiting websites...");
+                return;
+            }
+
+            if (query.startsWith("activate study mode ") || query.startsWith("activate routine ") || query.startsWith("start studying ")) {
+                const name = query.replace(/activate study mode |activate routine |start studying /, "").trim();
+                if (workspaceRoutines[name]) {
+                    speak(`Opening workspace for ${name}, Sir.`);
+                    saveHistory(cmd, `Activating ${name} routine.`);
+                    workspaceRoutines[name].forEach(site => {
+                        window.open(`https://www.${site}.com`, '_blank');
+                    });
+                } else {
+                    speak(`I couldn't find a routine named ${name}, Sir.`);
+                    saveHistory(cmd, "Routine not found.");
+                }
+                return;
+            }
+
             // --- LOCAL CONVERSATIONAL RESPONSES ---
             const conversational = {
                 "hey jarvis": ["At your service, Sir.", "Yes, Sir?", "I am online and ready, Sir.", "Standing by, Sir.", "How can I assist you, Sir?"],
