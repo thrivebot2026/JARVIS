@@ -811,6 +811,11 @@
                     }
                 }
 
+                if (reply.includes("[IGNORE]")) {
+                    logEl.innerText = "IGNORED BACKGROUND NOISE";
+                    return; // Silently abort without speaking or saving history
+                }
+
                 let speechText = reply;
                 
                 // Check for code blocks
