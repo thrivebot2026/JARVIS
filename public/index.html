@@ -650,6 +650,23 @@
                 // Don't return, let it flow to callAI so the AI can give the first lesson!
             }
 
+            if (query.includes("token status") || query.includes("system status") || query.includes("api status")) {
+                speak("Running full API diagnostics. Please stand by, Sir.");
+                try {
+                    const res = await fetch('/api/status');
+                    const data = await res.json();
+                    if (data.status) {
+                        speak("Diagnostics complete. " + data.status);
+                        saveHistory(cmd, data.status);
+                    } else {
+                        throw new Error("No status returned");
+                    }
+                } catch(e) {
+                    speak("I apologize, Sir. Diagnostic systems are currently offline.");
+                }
+                return;
+            }
+
             if (conversational[query] && !isTrainingMode) {
                 const replies = conversational[query];
                 const reply = replies[Math.floor(Math.random() * replies.length)];

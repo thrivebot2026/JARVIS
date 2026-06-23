@@ -370,6 +370,51 @@ DIRECTIONS:
 });
 
 
+// Endpoint: API Quota Diagnostics
+app.get('/api/status', async (req, res) => {
+    console.log("--- Token Diagnostics Request ---");
+    const groqKeysList = [
+        { name: "Primary Core", key: GROQ_API_KEY },
+        { name: "Secondary Backup 1", key: GROQ_API_KEY_2 },
+        { name: "Secondary Backup 2", key: GROQ_API_KEY_3 }
+    ].filter(k => k.key);
+
+    const statuses = [];
+
+    for (let k of groqKeysList) {
+        try {
+            const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${k.key}`, 'Content-Type': 'application/json' },
+                body: JSON.stringify({ model: "llama-3.3-70b-versatile", messages: [{ role: "user", content: "ping" }], max_tokens: 10 })
+            });
+            const data = await response.json();
+            
+            if (response.status === 429) {
+                statuses.push(`${k.name} is Offline (Rate Limited).`);
+            } else if (response.ok) {
+                const limit = response.headers.get('x-ratelimit-limit-tokens');
+                const remaining = response.headers.get('x-ratelimit-remaining-tokens');
+                if (limit && remaining) {
+                    statuses.push(`${k.name} is Online with ${remaining} tokens remaining.`);
+                } else {
+                    statuses.push(`${k.name} is Online and Healthy.`);
+                }
+            } else {
+                statuses.push(`${k.name} has an unknown error.`);
+            }
+        } catch(e) {
+            statuses.push(`${k.name} Network Exception.`);
+        }
+    }
+    
+    if (OPENROUTER_API_KEY) {
+        statuses.push("Tertiary OpenRouter Core is armed and standing by.");
+    }
+
+    return res.json({ status: statuses.join(" ") });
+});
+
 const PORT = process.env.PORT || 3000;
 
 if (process.env.NODE_ENV !== 'production') {
