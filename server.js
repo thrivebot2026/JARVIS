@@ -220,7 +220,7 @@ Only provide ONE interactive block per response when appropriate. Encourage the 
             let orModel = "meta-llama/llama-3-8b-instruct:free";
 
             if (req.body.image) {
-                orModel = "google/gemini-2.0-flash-exp:free";
+                orModel = "meta-llama/llama-3.2-11b-vision-instruct:free";
                 let userContentArray = [];
                 
                 if (req.body.referenceImage) {
