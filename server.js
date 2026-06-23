@@ -1,6 +1,7 @@
 const express = require('express');
 const cors = require('cors');
 const si = require('systeminformation');
+const ytSearch = require('yt-search');
 require('dotenv').config();
 
 const app = express();
@@ -434,6 +435,25 @@ app.get('/api/diagnostics', async (req, res) => {
     } catch (error) {
         console.error("Diagnostics Error:", error);
         return res.status(500).json({ error: "Failed to read hardware sensors." });
+    }
+});
+
+// Endpoint: YouTube Search
+app.get('/api/youtube', async (req, res) => {
+    try {
+        const query = req.query.q;
+        if (!query) return res.status(400).json({ error: "No query provided." });
+        
+        const r = await ytSearch(query);
+        const videos = r.videos;
+        if (videos.length > 0) {
+            return res.json({ videoId: videos[0].videoId, title: videos[0].title });
+        } else {
+            return res.status(404).json({ error: "No videos found." });
+        }
+    } catch (error) {
+        console.error("YouTube Search Error:", error);
+        return res.status(500).json({ error: "Search failed." });
     }
 });
 

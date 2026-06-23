@@ -360,10 +360,22 @@
         <div id="interactive-content" style="padding: 15px; flex: 1; overflow-y: auto;"></div>
     </div>
 
+    <!-- MEDIA PANEL -->
+    <div id="media-panel">
+        <div style="padding: 10px; background: rgba(0, 195, 255, 0.1); border-bottom: 1px solid var(--primary-blue); display: flex; justify-content: space-between; align-items: center;">
+            <span style="color: var(--primary-blue); font-weight: bold; font-family: 'Orbitron'; font-size: 0.8em; letter-spacing: 1px;">MEDIA PROTOCOL</span>
+            <button style="background:none; border:none; color:var(--primary-blue); cursor:pointer; font-size: 1.2em;" onclick="closeMediaPanel()">✕</button>
+        </div>
+        <div id="yt-player" style="flex: 1;"></div>
+    </div>
+
     <div class="footer-info">
         <div>Powered By Atharv Wani</div>
         <div class="ai-disclaimer">DISCLAIMER: ALL DATA IS AI-GENERATED. PLEASE CROSS-CHECK CRITICAL INFORMATION.</div>
     </div>
+
+    <!-- YouTube IFrame API -->
+    <script src="https://www.youtube.com/iframe_api"></script>
 
     <script>
         const timeEl = document.getElementById('time');
