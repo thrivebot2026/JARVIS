@@ -365,12 +365,14 @@
 
         renderHistory();
 
+        let currentMicLang = 'en-US';
+
         // --- SPEECH RECOGNITION ---
         if ('webkitSpeechRecognition' in window) {
             recognition = new webkitSpeechRecognition();
             recognition.continuous = true;
             recognition.interimResults = true;
-            // Removed hardcoded en-US to allow browser to attempt auto-detection or accept mixed dictation
+            recognition.lang = currentMicLang;
 
             recognition.onresult = (event) => {
                 let interimTranscript = '';
@@ -791,6 +793,22 @@
                 if (langMatch) {
                     langCode = langMatch[1].toLowerCase();
                     reply = reply.replace(/\[LANG:\s*[a-z]{2}\s*\]\s*/i, '').trim();
+
+                    // Switch microphone transcription language dynamically
+                    let newMicLang = 'en-US';
+                    if (langCode === 'de') newMicLang = 'de-DE';
+                    else if (langCode === 'hi') newMicLang = 'hi-IN';
+                    else if (langCode === 'mr') newMicLang = 'mr-IN';
+                    
+                    if (currentMicLang !== newMicLang) {
+                        currentMicLang = newMicLang;
+                        if (recognition) {
+                            recognition.lang = currentMicLang;
+                            if (isListening) {
+                                recognition.stop(); // onend will auto-restart it with the new language
+                            }
+                        }
+                    }
                 }
 
                 let speechText = reply;
