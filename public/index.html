@@ -248,6 +248,52 @@
             pointer-events: none;
             width: 100%;
         }
+        #interactive-panel {
+            position: fixed;
+            top: 0; right: -600px;
+            width: 500px; height: 100vh;
+            background: rgba(0, 10, 20, 0.95);
+            border-left: 2px solid var(--primary-blue);
+            box-shadow: -5px 0 30px rgba(0, 212, 255, 0.2);
+            z-index: 200;
+            transition: right 0.4s ease;
+            display: flex;
+            flex-direction: column;
+            padding: 20px;
+            box-sizing: border-box;
+            color: white;
+            font-family: 'Inter', sans-serif;
+        }
+        #interactive-panel.open { right: 0; }
+        .drag-word {
+            display: inline-block;
+            background: rgba(0, 212, 255, 0.2);
+            border: 1px solid var(--primary-blue);
+            padding: 10px 15px;
+            margin: 5px;
+            border-radius: 4px;
+            cursor: grab;
+            font-size: 1.1em;
+            user-select: none;
+        }
+        .drag-word:active { cursor: grabbing; }
+        .drop-zone {
+            min-height: 80px;
+            border: 2px dashed rgba(0, 212, 255, 0.5);
+            border-radius: 8px;
+            padding: 10px;
+            margin-bottom: 20px;
+            display: flex;
+            flex-wrap: wrap;
+            align-content: flex-start;
+        }
+        .word-bank {
+            min-height: 120px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 10px;
+            display: flex;
+            flex-wrap: wrap;
+        }
         .ai-disclaimer {
             font-size: 0.7em;
             margin-top: 5px;
@@ -299,7 +345,19 @@
                 <button class="code-btn" onclick="closeCodePanel()">CLOSE</button>
             </div>
         </div>
-        <pre id="code-content"></pre>
+        <div class="code-content-wrapper" style="flex:1; display:flex; margin-top:15px; overflow-y:auto;">
+            <pre id="code-content"></pre>
+        </div>
+    </div>
+
+    <div id="interactive-panel">
+        <div class="code-header">
+            <h3>INTERACTIVE TRAINER</h3>
+            <div>
+                <button class="code-btn" onclick="closeInteractivePanel()">CLOSE</button>
+            </div>
+        </div>
+        <div id="interactive-content" style="padding: 15px; flex: 1; overflow-y: auto;"></div>
     </div>
 
     <div class="footer-info">
@@ -318,6 +376,7 @@
 
         let isListening = false;
         let isSpeaking = false;
+        let isTrainingMode = false;
         let lastSpeechTime = 0; // Cooldown tracking
         let recognition;
         let voices = [];
@@ -582,7 +641,20 @@
                 }
             }
 
-            if (conversational[query]) {
+            if (query.includes("stop training") || query.includes("exit training")) {
+                isTrainingMode = false;
+                conversationHistory = [];
+                const reply = "Training mode deactivated. Core memory wiped.";
+                speak(reply);
+                saveHistory(cmd, reply);
+                return;
+            } else if (query.includes("start training") || query.includes("teach me")) {
+                isTrainingMode = true;
+                logEl.innerText = "TRAINER MODE ACTIVATED";
+                // Don't return, let it flow to callAI so the AI can give the first lesson!
+            }
+
+            if (conversational[query] && !isTrainingMode) {
                 const replies = conversational[query];
                 const reply = replies[Math.floor(Math.random() * replies.length)];
                 speak(reply);
@@ -755,7 +827,8 @@
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         message: query,
-                        history: conversationHistory.slice(-MAX_HISTORY_TURNS * 2) // last N turns
+                        history: conversationHistory,
+                        training: isTrainingMode
                     })
                 });
                 
@@ -818,6 +891,21 @@
 
                 let speechText = reply;
                 
+                // Check for interactive blocks
+                const interactiveRegex = /```interactive\s*(\{[\s\S]*?\})\s*```/i;
+                const intMatch = speechText.match(interactiveRegex);
+                
+                if (intMatch) {
+                    try {
+                        const activityData = JSON.parse(intMatch[1].trim());
+                        renderInteractiveActivity(activityData);
+                        speechText = speechText.replace(interactiveRegex, " I have generated an interactive exercise on your screen, Sir.").trim();
+                        if (!speechText) speechText = "I have generated an interactive exercise on your screen, Sir.";
+                    } catch(e) {
+                        console.error("Failed to parse interactive JSON:", e);
+                    }
+                }
+
                 // Check for code blocks
                 const codeRegex = /```(?:[^\n]*\n)?([\s\S]*?)```/;
                 const match = reply.match(codeRegex);
@@ -837,8 +925,9 @@
                 // Append to conversation memory
                 conversationHistory.push({ role: 'user', content: query });
                 conversationHistory.push({ role: 'assistant', content: reply });
-                // Cap memory to last MAX_HISTORY_TURNS exchanges
-                if (conversationHistory.length > MAX_HISTORY_TURNS * 2) {
+                
+                // Cap memory to last MAX_HISTORY_TURNS exchanges unless in training mode
+                if (!isTrainingMode && conversationHistory.length > MAX_HISTORY_TURNS * 2) {
                     conversationHistory = conversationHistory.slice(-MAX_HISTORY_TURNS * 2);
                 }
 
@@ -862,12 +951,82 @@
         }
 
         function copyCode() {
-            const codeText = document.getElementById('code-content').innerText;
-            navigator.clipboard.writeText(codeText).then(() => {
+            const code = document.getElementById('code-content').innerText;
+            navigator.clipboard.writeText(code).then(() => {
                 const btn = document.getElementById('copyCodeBtn');
-                btn.innerText = "COPIED!";
-                setTimeout(() => btn.innerText = "COPY", 2000);
+                btn.innerText = 'COPIED!';
+                setTimeout(() => btn.innerText = 'COPY', 2000);
             });
+        }
+
+        // --- INTERACTIVE TRAINER LOGIC ---
+        function closeInteractivePanel() {
+            document.getElementById('interactive-panel').classList.remove('open');
+        }
+
+        function renderInteractiveActivity(data) {
+            const content = document.getElementById('interactive-content');
+            content.innerHTML = `<h3 style="color:var(--primary-blue); margin-bottom: 20px;">${data.question}</h3>`;
+            
+            if (data.type === 'drag_drop') {
+                content.innerHTML += `
+                    <div class="drop-zone" id="dropZone" ondragover="event.preventDefault()" ondrop="drop(event, this)"></div>
+                    <div class="word-bank" id="wordBank" ondragover="event.preventDefault()" ondrop="drop(event, this)">
+                        ${data.shuffled.map((w, i) => `<div class="drag-word" draggable="true" id="word-${i}" ondragstart="drag(event)">${w}</div>`).join('')}
+                    </div>
+                    <button class="code-btn" style="margin-top:20px; width:100%; padding:15px; font-size:1.2em;" onclick="checkAnswer('${data.words.join(' ').replace(/'/g, "\\'")}')">CHECK ANSWER</button>
+                    <div id="activity-result" style="margin-top:20px; text-align:center; font-size:1.2em; font-weight:bold;"></div>
+                `;
+            } else if (data.type === 'multiple_choice') {
+                content.innerHTML += `
+                    <div style="display:flex; flex-direction:column; gap:15px; margin-top:20px;">
+                        ${data.options.map((opt, i) => `<button class="code-btn" style="padding:15px; font-size:1.1em; text-align:left;" onclick="checkChoice('${opt.replace(/'/g, "\\'")}', '${data.answer.replace(/'/g, "\\'")}')">${opt}</button>`).join('')}
+                    </div>
+                    <div id="activity-result" style="margin-top:20px; text-align:center; font-size:1.2em; font-weight:bold;"></div>
+                `;
+            }
+            
+            document.getElementById('interactive-panel').classList.add('open');
+        }
+
+        let draggedElementId = null;
+        function drag(ev) { draggedElementId = ev.target.id; }
+        function drop(ev, targetElement) {
+            ev.preventDefault();
+            // Drop into dropZone or wordBank
+            if(targetElement.classList.contains('drop-zone') || targetElement.classList.contains('word-bank')) {
+                targetElement.appendChild(document.getElementById(draggedElementId));
+            } else if (targetElement.parentNode.classList.contains('drop-zone') || targetElement.parentNode.classList.contains('word-bank')) {
+                targetElement.parentNode.insertBefore(document.getElementById(draggedElementId), targetElement);
+            }
+        }
+        
+        function checkAnswer(correctAnswer) {
+            const dropZone = document.getElementById('dropZone');
+            const currentAnswer = Array.from(dropZone.children).map(el => el.innerText).join(' ');
+            const resEl = document.getElementById('activity-result');
+            if (currentAnswer.trim() === correctAnswer.trim()) {
+                resEl.style.color = '#00ff88';
+                resEl.innerText = "CORRECT!";
+                speak("Correct, Sir! Well done.");
+            } else {
+                resEl.style.color = '#ff3366';
+                resEl.innerText = "INCORRECT. Try again.";
+                speak("Not quite right, Sir. Give it another try.");
+            }
+        }
+
+        function checkChoice(selected, correct) {
+            const resEl = document.getElementById('activity-result');
+            if (selected === correct) {
+                resEl.style.color = '#00ff88';
+                resEl.innerText = "CORRECT!";
+                speak("Spot on, Sir!");
+            } else {
+                resEl.style.color = '#ff3366';
+                resEl.innerText = "INCORRECT.";
+                speak("Incorrect, Sir.");
+            }
         }
 
         // --- INITIALIZATION ---
