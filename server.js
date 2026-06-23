@@ -12,6 +12,7 @@ const GROQ_API_KEY = process.env.GROQ_API_KEY;
 const GROQ_API_KEY_2 = process.env.GROQ_API_KEY_2;
 const GROQ_API_KEY_3 = process.env.GROQ_API_KEY_3;
 const groqKeys = [GROQ_API_KEY, GROQ_API_KEY_2, GROQ_API_KEY_3].filter(Boolean);
+const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY;
 
 app.post('/api/ai', async (req, res) => {
     console.log("--- New AI Request Received ---");
@@ -146,9 +147,59 @@ Only provide ONE interactive block per response when appropriate. Encourage the 
             }
         }
 
-        // If all keys fail
+        // If all Groq keys fail, log it and fall through to OpenRouter (if available)
         console.error("ALL GROQ BACKUP KEYS EXHAUSTED.");
-        return res.status(500).json({ error: "All Backup Cores Offline. Last Error: " + lastGroqError });
+        if (!OPENROUTER_API_KEY) {
+            return res.status(500).json({ error: "All Backup Cores Offline. Last Error: " + lastGroqError });
+        }
+    }
+
+    // 3. ATTEMPT TERTIARY CORE (OPENROUTER)
+    if (OPENROUTER_API_KEY) {
+        try {
+            console.log("FALLBACK: Initiating OpenRouter Tertiary Protocol...");
+            const openRouterMessages = [
+                { role: "system", content: SYSTEM_PROMPT },
+                ...history.map(h => ({ role: h.role, content: h.content })),
+                { role: "user", content: userMessage }
+            ];
+
+            const orResponse = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${OPENROUTER_API_KEY}`,
+                    'HTTP-Referer': 'http://localhost:3000',
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    model: "meta-llama/llama-3-8b-instruct:free", // Using a solid free model on OpenRouter as tertiary backup
+                    messages: openRouterMessages,
+                    max_tokens: 150
+                })
+            });
+
+            const orData = await orResponse.json();
+
+            if (orData.error) {
+                console.error("OPENROUTER ERROR:", orData.error.message);
+                return res.status(500).json({ error: "Tertiary Core Offline: " + orData.error.message });
+            }
+
+            console.log("SUCCESS: OpenRouter Core Online.");
+            const formattedResponse = {
+                candidates: [{
+                    content: {
+                        parts: [{ text: orData.choices[0].message.content }]
+                    }
+                }]
+            };
+
+            return res.json(formattedResponse);
+
+        } catch (error) {
+            console.error("OPENROUTER EXCEPTION:", error.message);
+            return res.status(500).json({ error: "All Backup Cores Offline. Tertiary Core Exception: " + error.message });
+        }
     }
 
     res.status(503).json({ error: "Neural link offline: No API keys or Quota exceeded on all cores." });
