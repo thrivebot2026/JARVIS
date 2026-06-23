@@ -1,5 +1,6 @@
 const express = require('express');
 const cors = require('cors');
+const si = require('systeminformation');
 require('dotenv').config();
 
 const app = express();
@@ -413,6 +414,27 @@ app.get('/api/status', async (req, res) => {
     }
 
     return res.json({ status: statuses.join(" ") });
+});
+
+// Endpoint: System Hardware Diagnostics
+app.get('/api/diagnostics', async (req, res) => {
+    try {
+        const cpu = await si.currentLoad();
+        const mem = await si.mem();
+        const time = await si.time();
+
+        const cpuUsage = Math.round(cpu.currentLoad);
+        const ramUsed = Math.round((mem.active / 1024 / 1024 / 1024) * 10) / 10;
+        const ramTotal = Math.round((mem.total / 1024 / 1024 / 1024) * 10) / 10;
+        const uptimeHours = Math.round((time.uptime / 3600) * 10) / 10;
+
+        const report = `CPU usage is at ${cpuUsage} percent. Memory usage is at ${ramUsed} gigabytes out of ${ramTotal} gigabytes. System uptime is ${uptimeHours} hours.`;
+        
+        return res.json({ report });
+    } catch (error) {
+        console.error("Diagnostics Error:", error);
+        return res.status(500).json({ error: "Failed to read hardware sensors." });
+    }
 });
 
 const PORT = process.env.PORT || 3000;

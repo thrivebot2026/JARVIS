@@ -716,6 +716,23 @@
                 return;
             }
 
+            if (query.includes("system diagnostics") || query.includes("hardware check") || query.includes("pc stats")) {
+                logEl.innerText = "RUNNING HARDWARE DIAGNOSTICS...";
+                try {
+                    const res = await fetch('/api/diagnostics');
+                    const data = await res.json();
+                    if (data.report) {
+                        speak("Hardware diagnostics complete. " + data.report);
+                        saveHistory(cmd, data.report);
+                    } else {
+                        throw new Error("No report returned");
+                    }
+                } catch(e) {
+                    speak("I apologize, Sir. Hardware sensors are currently offline or unresponsive.");
+                }
+                return;
+            }
+
             if (conversational[query] && !isTrainingMode) {
                 const replies = conversational[query];
                 const reply = replies[Math.floor(Math.random() * replies.length)];
