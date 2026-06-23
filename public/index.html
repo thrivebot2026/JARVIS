@@ -370,7 +370,7 @@
             recognition = new webkitSpeechRecognition();
             recognition.continuous = true;
             recognition.interimResults = true;
-            recognition.lang = 'en-US';
+            // Removed hardcoded en-US to allow browser to attempt auto-detection or accept mixed dictation
 
             recognition.onresult = (event) => {
                 let interimTranscript = '';
@@ -438,8 +438,16 @@
         };
 
         // --- SPEECH SYNTHESIS ---
-        function getBritishVoice() {
+        function getVoiceForLang(langCode) {
             const allVoices = window.speechSynthesis.getVoices();
+            if (langCode === 'de') {
+                return allVoices.find(v => v.lang.startsWith('de')) || allVoices[0];
+            } else if (langCode === 'hi') {
+                return allVoices.find(v => v.lang.startsWith('hi')) || allVoices[0];
+            } else if (langCode === 'mr') {
+                return allVoices.find(v => v.lang.startsWith('mr')) || allVoices.find(v => v.lang.startsWith('hi')) || allVoices[0];
+            }
+            // Default English (British Jarvis)
             return allVoices.find(v => (v.name.includes('UK') || v.name.includes('Great Britain')) && (v.name.includes('Male') || v.name.includes('George'))) 
                    || allVoices.find(v => v.lang === 'en-GB') 
                    || allVoices[0];
@@ -465,7 +473,7 @@
         let keepAliveInterval = null;
         let globalSpeechId = 0;
 
-        function speak(text) {
+        function speak(text, langCode = 'en') {
             globalSpeechId++;
             const currentSpeechId = globalSpeechId;
             
@@ -509,7 +517,8 @@
                 }
 
                 const utter = new SpeechSynthesisUtterance(chunks[chunkIndex]);
-                utter.voice = getBritishVoice();
+                utter.voice = getVoiceForLang(langCode);
+                utter.lang = langCode;
                 utter.rate = 1.3;
                 utter.pitch = 0.9;
                 utter.onend = () => {
@@ -776,6 +785,14 @@
                 }
 
                 let reply = data.candidates[0].content.parts[0].text;
+                
+                let langCode = 'en';
+                const langMatch = reply.match(/^\[LANG:([a-z]{2})\]/i);
+                if (langMatch) {
+                    langCode = langMatch[1].toLowerCase();
+                    reply = reply.replace(/^\[LANG:[a-z]{2}\]\s*/i, '').trim();
+                }
+
                 let speechText = reply;
                 
                 // Check for code blocks
@@ -802,7 +819,7 @@
                     conversationHistory = conversationHistory.slice(-MAX_HISTORY_TURNS * 2);
                 }
 
-                speak(speechText);
+                speak(speechText, langCode);
                 saveHistory(query, reply);
             } catch (err) {
                 console.error("AI Error:", err);
