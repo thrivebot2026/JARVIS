@@ -274,7 +274,35 @@
             pointer-events: none;
             width: 100%;
         }
-        
+
+        #sentiment-panel {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: rgba(0, 10, 20, 0.8);
+            border: 1px solid var(--primary-blue);
+            padding: 15px;
+            border-radius: 8px;
+            box-shadow: var(--glow);
+            text-align: center;
+            z-index: 100;
+        }
+
+        #sentiment-value {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 1.5em;
+            font-weight: bold;
+            letter-spacing: 3px;
+            transition: color 0.5s ease, text-shadow 0.5s ease;
+        }
+
+        .sentiment-neutral { color: var(--primary-blue); text-shadow: 0 0 10px var(--primary-blue); }
+        .sentiment-positive { color: #00ff88; text-shadow: 0 0 10px #00ff88; }
+        .sentiment-negative { color: #ff3333; text-shadow: 0 0 10px #ff3333; }
+        .sentiment-frustrated { color: #ff6600; text-shadow: 0 0 10px #ff6600; }
+        .sentiment-excited { color: #ffcc00; text-shadow: 0 0 10px #ffcc00; }
+        .sentiment-confused { color: #cc66ff; text-shadow: 0 0 10px #cc66ff; }
+
         #whiteboard-panel {
             position: fixed;
             top: 0; left: -600px;
@@ -464,6 +492,11 @@
         <div id="lock-status">Awaiting Authorization...</div>
     </div>
     <div class="hud-overlay"></div>
+
+    <div id="sentiment-panel">
+        <h3 style="letter-spacing: 2px; font-family: 'Orbitron'; font-size: 0.8em; margin-bottom: 5px;">PSYCHOLOGICAL PROFILE</h3>
+        <div id="sentiment-value" class="sentiment-neutral">NEUTRAL</div>
+    </div>
 
     <div id="status-bar">
         <div id="time">00:00 AM</div>
@@ -1638,6 +1671,17 @@
 
                 let reply = data.candidates[0].content.parts[0].text;
                 
+                // Parse Sentiment
+                let sentimentMatch = reply.match(/\[SENTIMENT:\s*([A-Z]+)\s*\]/i);
+                if (sentimentMatch) {
+                    const sentiment = sentimentMatch[1].toUpperCase();
+                    reply = reply.replace(/\[SENTIMENT:\s*[A-Z]+\s*\]\s*/i, '').trim();
+                    
+                    const sentimentEl = document.getElementById('sentiment-value');
+                    sentimentEl.innerText = sentiment;
+                    sentimentEl.className = `sentiment-${sentiment.toLowerCase()}`;
+                }
+
                 let langCode = 'en';
                 const langMatch = reply.match(/\[LANG:\s*([a-z]{2})\s*\]/i);
                 if (langMatch) {
