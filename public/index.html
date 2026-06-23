@@ -611,6 +611,57 @@
             }
         }
 
+        async function captureWebcamFrame() {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ 
+                    video: true, 
+                    audio: false 
+                });
+                
+                const video = document.createElement('video');
+                video.srcObject = stream;
+                video.autoplay = true;
+                
+                await new Promise((resolve) => {
+                    video.onloadedmetadata = () => {
+                        resolve();
+                    };
+                });
+                
+                // Let the webcam adjust exposure for 500ms
+                await new Promise(r => setTimeout(r, 500));
+                
+                const MAX_DIMENSION = 1200;
+                let targetWidth = video.videoWidth;
+                let targetHeight = video.videoHeight;
+                
+                if (targetWidth > MAX_DIMENSION || targetHeight > MAX_DIMENSION) {
+                    if (targetWidth > targetHeight) {
+                        targetHeight = Math.floor(targetHeight * (MAX_DIMENSION / targetWidth));
+                        targetWidth = MAX_DIMENSION;
+                    } else {
+                        targetWidth = Math.floor(targetWidth * (MAX_DIMENSION / targetHeight));
+                        targetHeight = MAX_DIMENSION;
+                    }
+                }
+                
+                const canvas = document.createElement('canvas');
+                canvas.width = targetWidth;
+                canvas.height = targetHeight;
+                
+                const context = canvas.getContext('2d');
+                context.drawImage(video, 0, 0, canvas.width, canvas.height);
+                
+                stream.getTracks().forEach(track => track.stop());
+                
+                const base64Image = canvas.toDataURL('image/jpeg', 0.5);
+                return base64Image;
+            } catch (err) {
+                console.error("Webcam capture error:", err);
+                return null;
+            }
+        }
+
         function startListening() {
             // Cancel any current speech (like greeting) to be interruptible
             window.speechSynthesis.cancel();
@@ -967,6 +1018,46 @@
                 return;
             }
 
+            // --- FACIAL RECOGNITION & BIOMETRICS ---
+            if (query.includes("register my face")) {
+                logEl.innerText = "INITIALIZING BIOMETRIC REGISTRATION...";
+                speak("Please look directly at the camera, Sir. I am taking your reference photo now.");
+                
+                const base64Image = await captureWebcamFrame();
+                
+                if (base64Image) {
+                    localStorage.setItem('jarvis_face_reference', base64Image);
+                    speak("Your facial biometrics have been successfully registered and securely encrypted to your local drive.");
+                    saveHistory(cmd, "Biometric anchor photo saved.");
+                } else {
+                    speak("I apologize, Sir. Camera access was denied or the capture failed.");
+                    saveHistory(cmd, "Biometric registration failed.");
+                }
+                return;
+            }
+
+            if (query.includes("run facial recognition") || query.includes("who am i") || query.includes("analyze my face")) {
+                const anchorImage = localStorage.getItem('jarvis_face_reference');
+                if (!anchorImage) {
+                    speak("I do not have a registered biometric anchor for you, Sir. Please tell me to register my face first.");
+                    saveHistory(cmd, "Facial Recognition failed (No anchor).");
+                    return;
+                }
+                
+                logEl.innerText = "RUNNING FACIAL RECOGNITION...";
+                speak("Scanning facial biometrics now, Sir.");
+                
+                const liveImage = await captureWebcamFrame();
+                
+                if (liveImage) {
+                    saveHistory(cmd, "Live photo captured. Sending to neural core for 1-to-1 matching.");
+                    callAI("Please perform a strict 1-to-1 biometric comparison between the live photo and the anchor photo provided in the system directive. Conclude your analysis by greeting the user and describing their current expression.", liveImage, anchorImage);
+                } else {
+                    speak("I apologize, Sir. Camera access was denied or failed.");
+                    saveHistory(cmd, "Facial Recognition failed.");
+                }
+                return;
+            }
             // --- BLUETOOTH MANAGER ---
             if (query.includes("bluetooth") && (query.includes("connect") || query.includes("scan") || query.includes("search") || query.includes("pair"))) {
                 speak("Due to browser security protocols, I cannot initiate a Bluetooth scan entirely via voice. Please click the button on your screen to authorize the scan, Sir.");
@@ -1295,7 +1386,7 @@
         }
 
 
-        async function callAI(query, image = null) {
+        async function callAI(query, image = null, referenceImage = null) {
             logEl.innerText = "TRANSMITTING TO CORE...";
             try {
                 const res = await fetch('/api/ai', {
@@ -1305,7 +1396,8 @@
                         message: query,
                         history: conversationHistory,
                         training: isTrainingMode,
-                        image: image
+                        image: image,
+                        referenceImage: referenceImage
                     })
                 });
                 

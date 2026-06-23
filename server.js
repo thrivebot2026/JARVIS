@@ -81,6 +81,22 @@ Only provide ONE interactive block per response when appropriate. Encourage the 
                 });
             }
             
+            if (req.body.referenceImage) {
+                console.log("Reference Image Detected: Attaching Anchor Image for Biometric Matching.");
+                const refMatch = req.body.referenceImage.match(/^data:(image\/(png|jpeg|jpg));base64,/);
+                const refMimeType = refMatch ? refMatch[1] : "image/jpeg";
+                const refBase64Data = req.body.referenceImage.replace(/^data:image\/(png|jpeg|jpg);base64,/, "");
+                userParts.push({
+                    text: "SYSTEM DIRECTIVE: The image below is the registered anchor reference photo of the authorized user. Please strictly compare the primary live image to this anchor image. If they are the same person, acknowledge their identity and welcome them back. If they do not match, trigger a security warning."
+                });
+                userParts.push({
+                    inlineData: {
+                        mimeType: refMimeType,
+                        data: refBase64Data
+                    }
+                });
+            }
+            
             geminiContents.push({ role: 'user', parts: userParts });
 
             const modelName = "gemini-3.5-flash";
