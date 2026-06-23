@@ -1378,6 +1378,13 @@
                 if (!isTrainingMode && conversationHistory.length > MAX_HISTORY_TURNS * 2) {
                     conversationHistory = conversationHistory.slice(-MAX_HISTORY_TURNS * 2);
                 }
+                // Strip markdown formatting characters for clean speech
+                speechText = speechText
+                    .replace(/#{1,3}\s*/g, '') // remove heading markers
+                    .replace(/\*\*/g, '')       // remove bold markers
+                    .replace(/[*_~`]/g, '')     // remove other md chars
+                    .replace(/\s+/g, ' ')
+                    .trim();
 
                 speak(speechText, langCode);
                 saveHistory(query, reply);
