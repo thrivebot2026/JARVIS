@@ -293,7 +293,7 @@
 
     <div id="code-panel">
         <div class="code-header">
-            <h3>CODE MODULE</h3>
+            <h3>DRAFT / CODE MODULE</h3>
             <div>
                 <button class="code-btn" id="copyCodeBtn" onclick="copyCode()">COPY</button>
                 <button class="code-btn" onclick="closeCodePanel()">CLOSE</button>
@@ -384,8 +384,9 @@
                     }
                 }
 
-                // If user speaks words (interim or final) while JARVIS is speaking, interrupt immediately
-                if ((interimTranscript.trim() || finalTranscript.trim()) && isSpeaking) {
+                // Only interrupt if the transcribed text is substantial (> 4 chars) to ignore small noise blips
+                const combinedTranscript = (interimTranscript + finalTranscript).trim();
+                if (combinedTranscript.length > 4 && isSpeaking) {
                     isSpeaking = false;
                     window.speechSynthesis.cancel();
                     logEl.innerText = "JARVIS INTERRUPTED";
