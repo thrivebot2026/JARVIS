@@ -425,8 +425,8 @@
             }, 10000);
 
             function speakNext() {
-                if (chunkIndex >= chunks.length) {
-                    // All chunks done
+                if (!isSpeaking || chunkIndex >= chunks.length) {
+                    // All chunks done or interrupted
                     clearInterval(keepAliveInterval);
                     keepAliveInterval = null;
                     isSpeaking = false;
@@ -446,6 +446,7 @@
                 utter.rate = 1.3;
                 utter.pitch = 0.9;
                 utter.onend = () => {
+                    if (!isSpeaking) return; // If interrupted, don't continue to next chunk
                     chunkIndex++;
                     speakNext();
                 };
