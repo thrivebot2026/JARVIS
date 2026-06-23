@@ -274,6 +274,40 @@
             pointer-events: none;
             width: 100%;
         }
+        
+        #whiteboard-panel {
+            position: fixed;
+            top: 0; left: -600px;
+            width: 500px; height: 100vh;
+            background: rgba(0, 10, 20, 0.95);
+            border-right: 2px solid var(--primary-blue);
+            box-shadow: 5px 0 30px rgba(0, 212, 255, 0.2);
+            z-index: 200;
+            transition: left 0.4s ease;
+            display: flex;
+            flex-direction: column;
+            padding: 20px;
+            box-sizing: border-box;
+            color: white;
+            font-family: 'Inter', sans-serif;
+        }
+        #whiteboard-panel.open { left: 0; }
+        
+        .whiteboard-textarea {
+            width: 100%;
+            flex: 1;
+            background: rgba(0,0,0,0.5);
+            color: #00ff88;
+            border: 1px solid rgba(0, 255, 136, 0.3);
+            border-radius: 8px;
+            padding: 15px;
+            font-family: 'Fira Code', monospace;
+            font-size: 1.1em;
+            resize: none;
+            box-sizing: border-box;
+            outline: none;
+            line-height: 1.6;
+        }
         #interactive-panel {
             position: fixed;
             top: 0; right: -600px;
@@ -374,6 +408,18 @@
         <div class="code-content-wrapper" style="flex:1; display:flex; margin-top:15px; overflow-y:auto;">
             <pre id="code-content"></pre>
         </div>
+    </div>
+
+    <!-- WHITEBOARD PANEL -->
+    <div id="whiteboard-panel">
+        <div class="code-header">
+            <h3>MATH WHITEBOARD</h3>
+            <div>
+                <button class="code-btn" onclick="clearWhiteboard()">CLEAR</button>
+                <button class="code-btn" onclick="closeWhiteboard()">CLOSE</button>
+            </div>
+        </div>
+        <textarea id="whiteboard-text" class="whiteboard-textarea" placeholder="Type math expressions like:\n1500 * 0.15 =\n\n(JARVIS will automatically calculate the result)" oninput="evaluateMath(this)"></textarea>
     </div>
 
     <div id="interactive-panel">
@@ -765,6 +811,28 @@
                 }
             }
 
+            // --- WHITEBOARD COMMANDS ---
+            if (query === "open whiteboard" || query === "show whiteboard") {
+                openWhiteboard();
+                speak("Opening the math whiteboard, Sir.");
+                saveHistory(cmd, "Whiteboard opened.");
+                return;
+            }
+
+            if (query === "close whiteboard" || query === "hide whiteboard") {
+                closeWhiteboard();
+                speak("Closing the whiteboard, Sir.");
+                saveHistory(cmd, "Whiteboard closed.");
+                return;
+            }
+
+            if (query === "clear whiteboard" || query === "erase whiteboard") {
+                clearWhiteboard();
+                speak("Whiteboard cleared, Sir.");
+                saveHistory(cmd, "Whiteboard cleared.");
+                return;
+            }
+
             // --- LOCAL CONVERSATIONAL RESPONSES ---
             const conversational = {
                 "hey jarvis": ["At your service, Sir.", "Yes, Sir?", "I am online and ready, Sir.", "Standing by, Sir.", "How can I assist you, Sir?"],
@@ -1153,6 +1221,50 @@
                 btn.innerText = 'COPIED!';
                 setTimeout(() => btn.innerText = 'COPY', 2000);
             });
+        }
+
+        // --- MATH WHITEBOARD LOGIC ---
+        function openWhiteboard() {
+            document.getElementById('whiteboard-panel').classList.add('open');
+            document.getElementById('whiteboard-text').focus();
+        }
+
+        function closeWhiteboard() {
+            document.getElementById('whiteboard-panel').classList.remove('open');
+        }
+
+        function clearWhiteboard() {
+            document.getElementById('whiteboard-text').value = '';
+        }
+
+        function evaluateMath(textarea) {
+            const lines = textarea.value.split('\n');
+            let modified = false;
+            
+            for (let i = 0; i < lines.length; i++) {
+                let line = lines[i];
+                // Match lines ending with "=" where the equal sign is the last non-whitespace char
+                if (line.trim().endsWith('=')) {
+                    // Extract the expression before "="
+                    let expr = line.substring(0, line.lastIndexOf('=')).trim();
+                    try {
+                        // Very simple/naive eval for math expressions.
+                        // Filter to allow only numbers, basic operators, and spaces to prevent malicious eval
+                        if (/^[0-9+\-*/().\s]*$/.test(expr) && expr.length > 0) {
+                            let result = Function('return ' + expr)();
+                            // Append the result
+                            lines[i] = line + " " + result;
+                            modified = true;
+                        }
+                    } catch (e) {
+                        // ignore invalid math expressions
+                    }
+                }
+            }
+            
+            if (modified) {
+                textarea.value = lines.join('\n');
+            }
         }
 
         // --- INTERACTIVE TRAINER LOGIC ---
