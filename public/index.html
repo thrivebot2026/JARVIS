@@ -833,6 +833,47 @@
                 return;
             }
 
+            // --- CURRENCY CONVERTER COMMANDS ---
+            const currMatch = query.match(/convert ([\d.]+) (.+) to (.+)/);
+            if (currMatch) {
+                const amount = currMatch[1];
+                const fromRaw = currMatch[2].toLowerCase();
+                const toRaw = currMatch[3].toLowerCase();
+
+                const currencyMap = {
+                    "usd": "USD", "dollar": "USD", "dollars": "USD", "bucks": "USD", "us dollars": "USD", "us dollar": "USD",
+                    "eur": "EUR", "euro": "EUR", "euros": "EUR",
+                    "gbp": "GBP", "pound": "GBP", "pounds": "GBP", "british pounds": "GBP",
+                    "jpy": "JPY", "yen": "JPY", "japanese yen": "JPY",
+                    "inr": "INR", "rupee": "INR", "rupees": "INR", "indian rupees": "INR",
+                    "cad": "CAD", "canadian dollars": "CAD", "canadian dollar": "CAD",
+                    "aud": "AUD", "australian dollars": "AUD", "australian dollar": "AUD",
+                    "mxn": "MXN", "peso": "MXN", "pesos": "MXN", "mexican pesos": "MXN"
+                };
+
+                const fromCode = currencyMap[fromRaw] || fromRaw.toUpperCase();
+                const toCode = currencyMap[toRaw] || toRaw.toUpperCase();
+
+                logEl.innerText = "FETCHING EXCHANGE RATES...";
+                try {
+                    const res = await fetch(`https://api.frankfurter.app/latest?amount=${amount}&from=${fromCode}&to=${toCode}`);
+                    const data = await res.json();
+                    
+                    if (data && data.rates && data.rates[toCode]) {
+                        const converted = data.rates[toCode];
+                        const msg = `${amount} ${fromCode} is equal to ${converted.toFixed(2)} ${toCode}.`;
+                        speak(msg);
+                        saveHistory(cmd, msg);
+                    } else {
+                        throw new Error("Invalid currency code");
+                    }
+                } catch(e) {
+                    speak(`I couldn't fetch the exchange rate for ${fromRaw} to ${toRaw}, Sir. The currency code might be unsupported.`);
+                    saveHistory(cmd, "Currency API Error.");
+                }
+                return;
+            }
+
             // --- LOCAL CONVERSATIONAL RESPONSES ---
             const conversational = {
                 "hey jarvis": ["At your service, Sir.", "Yes, Sir?", "I am online and ready, Sir.", "Standing by, Sir.", "How can I assist you, Sir?"],
