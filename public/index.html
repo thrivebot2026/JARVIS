@@ -310,26 +310,36 @@
         if ('webkitSpeechRecognition' in window) {
             recognition = new webkitSpeechRecognition();
             recognition.continuous = true;
-            recognition.interimResults = false;
+            recognition.interimResults = true;
             recognition.lang = 'en-US';
 
-            recognition.onspeechstart = () => {
-                // If JARVIS is currently speaking and user speaks, interrupt him immediately
-                if (isSpeaking) {
+            recognition.onresult = (event) => {
+                let interimTranscript = '';
+                let finalTranscript = '';
+
+                for (let i = event.resultIndex; i < event.results.length; ++i) {
+                    if (event.results[i].isFinal) {
+                        finalTranscript += event.results[i][0].transcript;
+                    } else {
+                        interimTranscript += event.results[i][0].transcript;
+                    }
+                }
+
+                // If user speaks words (interim or final) while JARVIS is speaking, interrupt immediately
+                if ((interimTranscript.trim() || finalTranscript.trim()) && isSpeaking) {
                     window.speechSynthesis.cancel();
                     isSpeaking = false;
                     logEl.innerText = "JARVIS INTERRUPTED";
                     wavesEl.classList.remove('active-voice');
                 }
-            };
 
-            recognition.onresult = (event) => {
-                const transcript = event.results[event.results.length - 1][0].transcript.trim();
-                if (!transcript) return; // Prevent empty commands
-
-                logEl.innerText = "COMMAND RECEIVED: " + transcript;
-                wavesEl.classList.remove('active-voice');
-                handleCommand(transcript);
+                if (finalTranscript.trim()) {
+                    logEl.innerText = "COMMAND RECEIVED: " + finalTranscript.trim();
+                    wavesEl.classList.remove('active-voice');
+                    handleCommand(finalTranscript.trim());
+                } else if (interimTranscript.trim()) {
+                    logEl.innerText = "LISTENING: " + interimTranscript.trim();
+                }
             };
 
             recognition.onerror = (e) => {

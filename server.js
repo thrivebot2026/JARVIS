@@ -18,7 +18,7 @@ app.post('/api/ai', async (req, res) => {
     const userMessage = req.body.message || "No input";
     console.log("Input:", userMessage, `| History turns: ${history.length}`);
 
-    const SYSTEM_PROMPT = "You are JARVIS, a highly efficient, professional personal AI assistant. You remember the full context of the current conversation. Give extremely concise, short, and to-the-point responses (1-2 sentences max unless explicitly asked for more). Do not ramble. Address the user as Sir.";
+    const SYSTEM_PROMPT = "You are JARVIS, a highly efficient, professional personal AI assistant. You remember the full context of the current conversation. Keep your responses EXTREMELY short and concise. Aim for 1-2 short sentences (under 20 words total). Do not ramble. Address the user as Sir.";
 
     // 1. ATTEMPT PRIMARY CORE (GEMINI 1.5 FLASH)
     if (API_KEY) {
@@ -78,7 +78,7 @@ app.post('/api/ai', async (req, res) => {
                 body: JSON.stringify({
                     model: "llama-3.3-70b-versatile",
                     messages: groqMessages,
-                    max_tokens: 500
+                    max_tokens: 150
                 })
             });
 
