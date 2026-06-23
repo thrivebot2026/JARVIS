@@ -554,6 +554,47 @@
             };
         }
 
+        // --- SCREEN READING VISION LOGIC ---
+        async function captureScreenFrame() {
+            try {
+                // Request screen sharing
+                const stream = await navigator.mediaDevices.getDisplayMedia({ 
+                    video: { cursor: "always" }, 
+                    audio: false 
+                });
+                
+                // Create a hidden video element to play the stream
+                const video = document.createElement('video');
+                video.srcObject = stream;
+                video.autoplay = true;
+                
+                // Wait for the video to load metadata and have actual dimensions
+                await new Promise((resolve) => {
+                    video.onloadedmetadata = () => {
+                        resolve();
+                    };
+                });
+                
+                // Create a canvas to draw the frame
+                const canvas = document.createElement('canvas');
+                canvas.width = video.videoWidth;
+                canvas.height = video.videoHeight;
+                
+                const context = canvas.getContext('2d');
+                context.drawImage(video, 0, 0, canvas.width, canvas.height);
+                
+                // Stop all tracks to end screen sharing instantly
+                stream.getTracks().forEach(track => track.stop());
+                
+                // Get Base64 image
+                const base64Image = canvas.toDataURL('image/png');
+                return base64Image;
+            } catch (err) {
+                console.error("Screen capture error:", err);
+                return null;
+            }
+        }
+
         function startListening() {
             // Cancel any current speech (like greeting) to be interruptible
             window.speechSynthesis.cancel();
@@ -891,6 +932,25 @@
                 return;
             }
 
+            // --- SCREEN READING VISION COMMANDS ---
+            if (query.includes("what am i looking at") || query.includes("what is on my screen") || query.includes("read my screen")) {
+                logEl.innerText = "REQUESTING SCREEN ACCESS...";
+                speak("Please grant me access to view your screen, Sir.");
+                
+                const base64Image = await captureScreenFrame();
+                
+                if (base64Image) {
+                    speak("Screen captured. Analyzing visual data now.");
+                    saveHistory(cmd, "Screen captured. Sending to neural core.");
+                    // Send to AI with the image
+                    callAI("This is a screenshot of my current screen. Please tell me what I am looking at.", base64Image);
+                } else {
+                    speak("I apologize, Sir. Screen access was denied or failed.");
+                    saveHistory(cmd, "Screen capture failed.");
+                }
+                return;
+            }
+
             // --- WEATHER RADAR COMMANDS ---
             if (query === "show me the weather radar" || query === "show weather radar" || query === "weather radar" || query === "open weather radar" || query === "open radar") {
                 logEl.innerText = "OPENING WEATHER RADAR...";
@@ -1193,7 +1253,7 @@
         }
 
 
-        async function callAI(query) {
+        async function callAI(query, image = null) {
             logEl.innerText = "TRANSMITTING TO CORE...";
             try {
                 const res = await fetch('/api/ai', {
@@ -1202,7 +1262,8 @@
                     body: JSON.stringify({
                         message: query,
                         history: conversationHistory,
-                        training: isTrainingMode
+                        training: isTrainingMode,
+                        image: image
                     })
                 });
                 

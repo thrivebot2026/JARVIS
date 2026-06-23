@@ -65,7 +65,20 @@ Only provide ONE interactive block per response when appropriate. Encourage the 
                 parts: [{ text: h.content }]
             }));
             // Append current user message
-            geminiContents.push({ role: 'user', parts: [{ text: userMessage }] });
+            let userParts = [{ text: userMessage }];
+            
+            if (req.body.image) {
+                console.log("Vision Request Detected: Attaching Screen Image.");
+                const base64Data = req.body.image.replace(/^data:image\/(png|jpeg|jpg);base64,/, "");
+                userParts.push({
+                    inlineData: {
+                        mimeType: "image/png",
+                        data: base64Data
+                    }
+                });
+            }
+            
+            geminiContents.push({ role: 'user', parts: userParts });
 
             const modelName = "gemini-1.5-flash";
             const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${API_KEY}`, {
