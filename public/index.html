@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>JARVIS | Core Interface</title>
     <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Rajdhani:wght@300;500;700&display=swap" rel="stylesheet">
+    <script defer src="https://cdn.jsdelivr.net/npm/@vladmandic/face-api@1.7.12/dist/face-api.min.js"></script>
     <style>
         :root {
             --primary-blue: #00d4ff;
@@ -612,57 +613,94 @@
             speak("System unlocked. Welcome back, Sir.");
         }
 
+        let faceModelsLoaded = false;
+        async function loadFaceModels() {
+            try {
+                lockStatus.innerText = 'Loading Biometric Neural Nets...';
+                await faceapi.nets.ssdMobilenetv1.loadFromUri('https://cdn.jsdelivr.net/npm/@vladmandic/face-api/model/');
+                await faceapi.nets.faceLandmark68Net.loadFromUri('https://cdn.jsdelivr.net/npm/@vladmandic/face-api/model/');
+                await faceapi.nets.faceRecognitionNet.loadFromUri('https://cdn.jsdelivr.net/npm/@vladmandic/face-api/model/');
+                faceModelsLoaded = true;
+                lockStatus.innerText = 'Awaiting Authorization...';
+            } catch (err) {
+                console.error("Face-API load error:", err);
+                lockStatus.innerText = 'Biometric Engine Offline (Network Error)';
+            }
+        }
+        loadFaceModels();
+
+        async function captureWebcamDescriptor() {
+            if (!faceModelsLoaded) {
+                console.error("Face models not loaded yet.");
+                return null;
+            }
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" } });
+                const video = document.createElement('video');
+                video.srcObject = stream;
+                await new Promise(resolve => {
+                    video.onloadedmetadata = () => { video.play(); resolve(); };
+                });
+                await new Promise(r => setTimeout(r, 300)); // stabilize
+                
+                const detection = await faceapi.detectSingleFace(video).withFaceLandmarks().withFaceDescriptor();
+                stream.getTracks().forEach(track => track.stop());
+                
+                if (detection) {
+                    return Array.from(detection.descriptor);
+                }
+                return null;
+            } catch (err) {
+                console.error("Webcam descriptor capture error:", err);
+                return null;
+            }
+        }
+
         async function attemptBiometricUnlock() {
+            if (!faceModelsLoaded) {
+                speak("Neural nets are still loading. Please wait or use PIN bypass.");
+                return;
+            }
             lockStatus.innerText = 'Initiating Scanner...';
             speak("Please look directly at the camera, Sir.");
             
-            const liveImage = await captureWebcamFrame();
+            const liveDescriptorArray = await captureWebcamDescriptor();
             
-            if (liveImage) {
-                const anchors = JSON.parse(localStorage.getItem('jarvis_face_references') || '[]');
+            if (liveDescriptorArray) {
+                const anchors = JSON.parse(localStorage.getItem('jarvis_face_descriptors') || '[]');
                 if (anchors.length === 0) {
                     lockStatus.innerText = 'No Biometric Profiles Found.';
                     speak("I do not have any registered biometric anchors in your local drive. Please use the manual override code.");
                     return;
                 }
                 
-                lockStatus.innerText = 'Scanning Facial Biometrics...';
-                try {
-                    const res = await fetch('/api/ai', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                            message: "CRITICAL SECURITY SCAN: Compare my live face to the registered anchor photos. Are we the exact same human being? If I am someone else, deny me access immediately. If I am an authorized user, just say 'ACCESS GRANTED'.",
-                            history: [],
-                            training: false,
-                            image: liveImage,
-                            referenceImages: anchors
-                        })
-                    });
-                    
-                    const data = await res.json();
-                    if (data.error) throw new Error(data.error.message || data.error);
-                    
-                    let reply = data.candidates[0].content.parts[0].text.trim().toUpperCase();
-                    if (reply.includes('ACCESS GRANTED')) {
-                        unlockSystem();
-                    } else {
-                        lockStatus.innerText = 'ACCESS DENIED: Unrecognized Individual.';
-                        lockStatus.style.color = '#ff3333';
-                        speak("Access denied. Biometric signature does not match any authorized users.");
-                        setTimeout(() => {
-                            lockStatus.innerText = 'Awaiting Authorization...';
-                            lockStatus.style.color = 'var(--primary-blue)';
-                        }, 2000);
+                lockStatus.innerText = 'Computing Euclidean Distance...';
+                
+                const liveDescriptor = new Float32Array(liveDescriptorArray);
+                let bestMatchDistance = 1.0;
+                
+                for (let anchorArray of anchors) {
+                    const anchorDescriptor = new Float32Array(anchorArray);
+                    const distance = faceapi.euclideanDistance(liveDescriptor, anchorDescriptor);
+                    if (distance < bestMatchDistance) {
+                        bestMatchDistance = distance;
                     }
-                } catch (err) {
-                    console.error("Biometric Unlock Error:", err);
-                    lockStatus.innerText = 'Neural Link Error.';
-                    speak("I apologize, Sir. Neural link is offline.");
+                }
+                
+                if (bestMatchDistance < 0.5) { // 0.5 threshold for strict matching
+                    unlockSystem();
+                } else {
+                    lockStatus.innerText = 'ACCESS DENIED: Unrecognized Individual.';
+                    lockStatus.style.color = '#ff3333';
+                    speak("Access denied. Biometric signature does not match any authorized users.");
+                    setTimeout(() => {
+                        lockStatus.innerText = 'Awaiting Authorization...';
+                        lockStatus.style.color = 'var(--primary-blue)';
+                    }, 2000);
                 }
             } else {
-                lockStatus.innerText = 'Camera Access Denied.';
-                speak("I require camera access to perform a biometric scan.");
+                lockStatus.innerText = 'Face Not Detected.';
+                speak("I could not detect a face in the camera frame.");
             }
         }
 
@@ -1220,25 +1258,25 @@
             // --- FACIAL RECOGNITION & BIOMETRICS ---
             if (query.includes("register my face") || query.includes("register a new face")) {
                 logEl.innerText = "INITIALIZING BIOMETRIC REGISTRATION...";
-                speak("Please look directly at the camera, Sir. I am taking the reference photo now.");
+                speak("Please look directly at the camera, Sir. I am extracting your facial descriptors now.");
                 
-                const base64Image = await captureWebcamFrame();
+                const descriptorArray = await captureWebcamDescriptor();
                 
-                if (base64Image) {
-                    let anchors = JSON.parse(localStorage.getItem('jarvis_face_references') || '[]');
-                    anchors.push(base64Image);
-                    localStorage.setItem('jarvis_face_references', JSON.stringify(anchors));
+                if (descriptorArray) {
+                    let anchors = JSON.parse(localStorage.getItem('jarvis_face_descriptors') || '[]');
+                    anchors.push(descriptorArray);
+                    localStorage.setItem('jarvis_face_descriptors', JSON.stringify(anchors));
                     speak(`Biometrics registered. There are now ${anchors.length} authorized profiles saved to your local drive.`);
-                    saveHistory(cmd, "Biometric anchor photo saved.");
+                    saveHistory(cmd, "Biometric descriptor saved.");
                 } else {
-                    speak("I apologize, Sir. Camera access was denied or the capture failed.");
+                    speak("I apologize, Sir. Camera access was denied or I could not detect a face.");
                     saveHistory(cmd, "Biometric registration failed.");
                 }
                 return;
             }
 
             if (query.includes("run facial recognition") || query.includes("who am i") || query.includes("analyze my face")) {
-                const anchors = JSON.parse(localStorage.getItem('jarvis_face_references') || '[]');
+                const anchors = JSON.parse(localStorage.getItem('jarvis_face_descriptors') || '[]');
                 if (anchors.length === 0) {
                     speak("I do not have any registered biometric anchors, Sir. Please tell me to register my face first.");
                     saveHistory(cmd, "Facial Recognition failed (No anchor).");
@@ -1248,13 +1286,29 @@
                 logEl.innerText = "RUNNING FACIAL RECOGNITION...";
                 speak("Scanning facial biometrics now, Sir.");
                 
-                const liveImage = await captureWebcamFrame();
+                const liveDescriptorArray = await captureWebcamDescriptor();
                 
-                if (liveImage) {
-                    saveHistory(cmd, "Live photo captured. Sending to neural core for biometric matching.");
-                    callAI("CRITICAL SECURITY SCAN: Compare my live face to the array of registered anchor photos. Are we one of the exact same human beings? If I am someone else, deny me access immediately. If I am an authorized user, greet me and analyze my current facial expression.", liveImage, anchors);
+                if (liveDescriptorArray) {
+                    const liveDescriptor = new Float32Array(liveDescriptorArray);
+                    let bestMatchDistance = 1.0;
+                    
+                    for (let anchorArray of anchors) {
+                        const anchorDescriptor = new Float32Array(anchorArray);
+                        const distance = faceapi.euclideanDistance(liveDescriptor, anchorDescriptor);
+                        if (distance < bestMatchDistance) {
+                            bestMatchDistance = distance;
+                        }
+                    }
+                    
+                    if (bestMatchDistance < 0.5) {
+                        saveHistory(cmd, "Facial Recognition successful. Local match found.");
+                        callAI("A local biometric scan just verified that I am an authorized user. Please greet me warmly and ask what you can do for me.", null, null);
+                    } else {
+                        speak("I do not recognize you. Access denied.");
+                        saveHistory(cmd, "Facial Recognition failed. Distance: " + bestMatchDistance);
+                    }
                 } else {
-                    speak("I apologize, Sir. Camera access was denied or failed.");
+                    speak("I apologize, Sir. Camera access was denied or no face detected.");
                     saveHistory(cmd, "Facial Recognition failed.");
                 }
                 return;
