@@ -70,10 +70,12 @@ Only provide ONE interactive block per response when appropriate. Encourage the 
             
             if (req.body.image) {
                 console.log("Vision Request Detected: Attaching Screen Image.");
+                const match = req.body.image.match(/^data:(image\/(png|jpeg|jpg));base64,/);
+                const mimeType = match ? match[1] : "image/jpeg";
                 const base64Data = req.body.image.replace(/^data:image\/(png|jpeg|jpg);base64,/, "");
                 userParts.push({
                     inlineData: {
-                        mimeType: "image/png",
+                        mimeType: mimeType,
                         data: base64Data
                     }
                 });

@@ -575,10 +575,25 @@
                     };
                 });
                 
+                // Calculate new dimensions (max 1200px wide/high for speed)
+                const MAX_DIMENSION = 1200;
+                let targetWidth = video.videoWidth;
+                let targetHeight = video.videoHeight;
+                
+                if (targetWidth > MAX_DIMENSION || targetHeight > MAX_DIMENSION) {
+                    if (targetWidth > targetHeight) {
+                        targetHeight = Math.floor(targetHeight * (MAX_DIMENSION / targetWidth));
+                        targetWidth = MAX_DIMENSION;
+                    } else {
+                        targetWidth = Math.floor(targetWidth * (MAX_DIMENSION / targetHeight));
+                        targetHeight = MAX_DIMENSION;
+                    }
+                }
+                
                 // Create a canvas to draw the frame
                 const canvas = document.createElement('canvas');
-                canvas.width = video.videoWidth;
-                canvas.height = video.videoHeight;
+                canvas.width = targetWidth;
+                canvas.height = targetHeight;
                 
                 const context = canvas.getContext('2d');
                 context.drawImage(video, 0, 0, canvas.width, canvas.height);
@@ -586,8 +601,9 @@
                 // Stop all tracks to end screen sharing instantly
                 stream.getTracks().forEach(track => track.stop());
                 
-                // Get Base64 image
-                const base64Image = canvas.toDataURL('image/png');
+                // Get heavily compressed Base64 JPEG (Quality: 0.5)
+                // This reduces upload time from ~3 minutes to ~1 second
+                const base64Image = canvas.toDataURL('image/jpeg', 0.5);
                 return base64Image;
             } catch (err) {
                 console.error("Screen capture error:", err);
