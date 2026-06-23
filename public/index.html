@@ -327,8 +327,8 @@
 
                 // If user speaks words (interim or final) while JARVIS is speaking, interrupt immediately
                 if ((interimTranscript.trim() || finalTranscript.trim()) && isSpeaking) {
-                    window.speechSynthesis.cancel();
                     isSpeaking = false;
+                    window.speechSynthesis.cancel();
                     logEl.innerText = "JARVIS INTERRUPTED";
                     wavesEl.classList.remove('active-voice');
                 }
@@ -451,7 +451,7 @@
                     speakNext();
                 };
                 utter.onerror = (e) => {
-                    // Skip errored chunk and continue
+                    if (!isSpeaking) return; // If interrupted, halt queue
                     console.warn('TTS chunk error:', e);
                     chunkIndex++;
                     speakNext();
