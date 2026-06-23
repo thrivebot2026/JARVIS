@@ -1083,6 +1083,19 @@
                 // Don't return, let it flow to callAI so the AI can give the first lesson!
             }
 
+            // --- TYPING SPEED TEST ---
+            if (query.includes("typing speed test") || query.includes("typing test")) {
+                const sampleText = "The quick brown fox jumps over the lazy dog. Programming is the art of algorithm design and the craft of debugging errant code.";
+                speak("Initiating typing speed test. Begin typing when ready, Sir.");
+                saveHistory(cmd, "Opened Typing Speed Test.");
+                renderInteractiveActivity({
+                    type: "typing_test",
+                    question: "Typing Speed Test",
+                    text: sampleText
+                });
+                return;
+            }
+
             if (query.includes("token status") || query.includes("system status") || query.includes("api status")) {
                 logEl.innerText = "RUNNING API DIAGNOSTICS...";
                 try {
@@ -1519,9 +1532,28 @@
                     <button class="code-btn" style="margin-top:20px; width:100%; padding:15px; font-size:1.2em;" onclick="${data.action}()">${data.text}</button>
                     <div id="activity-result" style="margin-top:20px; text-align:center; font-size:1.2em; font-weight:bold;"></div>
                 `;
+            } else if (data.type === 'typing_test') {
+                content.innerHTML += `
+                    <div style="background: rgba(0,0,0,0.5); padding: 15px; border-radius: 8px; border: 1px solid rgba(0,212,255,0.3); font-size: 1.2em; margin-bottom: 15px; line-height: 1.5;">
+                        <span id="typing-text-display">${data.text}</span>
+                    </div>
+                    <textarea id="typing-input" oninput="checkTypingProgress()" placeholder="Start typing here to begin..." style="box-sizing: border-box; width: 100%; height: 120px; background: rgba(0,0,0,0.4); color: #fff; border: 1px solid var(--primary-blue); border-radius: 8px; padding: 15px; font-family: monospace; font-size: 1.1em; resize: none;"></textarea>
+                    <div id="typing-stats" style="margin-top: 15px; display: flex; justify-content: space-between; font-weight: bold; font-family: 'Orbitron'; color: #00ff88; font-size: 1.2em;">
+                        <span>WPM: <span id="typing-wpm">0</span></span>
+                        <span>Accuracy: <span id="typing-acc">100</span>%</span>
+                    </div>
+                `;
+                window.typingTestData = {
+                    originalText: data.text,
+                    startTime: null,
+                    completed: false
+                };
             }
             
             document.getElementById('interactive-panel').classList.add('open');
+            if (data.type === 'typing_test') {
+                setTimeout(() => document.getElementById('typing-input').focus(), 500);
+            }
         }
 
         let draggedElementId = null;
@@ -1593,6 +1625,57 @@
                 resEl.innerText = "PAIRING CANCELLED OR FAILED";
                 speak("Bluetooth pairing was cancelled or failed, Sir.");
                 saveHistory("Bluetooth Scan", "Pairing failed.");
+            }
+        }
+
+        function checkTypingProgress() {
+            if (window.typingTestData.completed) return;
+            
+            const inputEl = document.getElementById('typing-input');
+            const displayEl = document.getElementById('typing-text-display');
+            const wpmEl = document.getElementById('typing-wpm');
+            const accEl = document.getElementById('typing-acc');
+            
+            const typed = inputEl.value;
+            const original = window.typingTestData.originalText;
+            
+            if (!window.typingTestData.startTime && typed.length > 0) {
+                window.typingTestData.startTime = new Date().getTime();
+            }
+            
+            let correctChars = 0;
+            let displayHTML = "";
+            for (let i = 0; i < original.length; i++) {
+                if (i < typed.length) {
+                    if (typed[i] === original[i]) {
+                        displayHTML += `<span style="color: #00ff88">${original[i]}</span>`;
+                        correctChars++;
+                    } else {
+                        displayHTML += `<span style="color: #ff3366; text-decoration: underline;">${original[i]}</span>`;
+                    }
+                } else {
+                    displayHTML += `<span>${original[i]}</span>`;
+                }
+            }
+            displayEl.innerHTML = displayHTML;
+            
+            const accuracy = typed.length > 0 ? Math.floor((correctChars / typed.length) * 100) : 100;
+            accEl.innerText = accuracy;
+            
+            if (window.typingTestData.startTime) {
+                const elapsedMin = (new Date().getTime() - window.typingTestData.startTime) / 60000;
+                if (elapsedMin > 0) {
+                    const words = typed.length / 5;
+                    const wpm = Math.floor(words / elapsedMin);
+                    wpmEl.innerText = wpm;
+                }
+            }
+            
+            if (typed === original) {
+                window.typingTestData.completed = true;
+                speak(`Typing test complete, Sir. You achieved ${wpmEl.innerText} words per minute with ${accuracy} percent accuracy.`);
+                inputEl.disabled = true;
+                setTimeout(() => closeInteractivePanel(), 6000);
             }
         }
         // --- YOUTUBE MEDIA PLAYER LOGIC ---
