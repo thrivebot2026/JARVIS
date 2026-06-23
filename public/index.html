@@ -164,9 +164,58 @@
         .history-user { color: #fff; font-weight: bold; margin-bottom: 5px; }
         .history-jarvis { color: var(--primary-blue); opacity: 0.8; }
 
-
-
-        /* --- ANIMATIONS --- */
+        /* --- CODE PANEL --- */
+        #code-panel {
+            position: absolute;
+            top: 0;
+            right: -450px; /* Hidden by default */
+            width: 400px;
+            height: 100%;
+            background: rgba(2, 5, 10, 0.85);
+            border-left: 1px solid rgba(0, 212, 255, 0.3);
+            z-index: 100;
+            padding: 40px 20px;
+            transition: right 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            backdrop-filter: blur(15px);
+            box-shadow: -10px 0 30px rgba(0, 0, 0, 0.8);
+            display: flex;
+            flex-direction: column;
+        }
+        #code-panel.open { right: 0; }
+        .code-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            color: var(--primary-blue);
+            font-family: 'Orbitron';
+            letter-spacing: 2px;
+            border-bottom: 1px solid rgba(0, 212, 255, 0.3);
+            padding-bottom: 10px;
+        }
+        .code-btn {
+            background: transparent;
+            border: 1px solid var(--primary-blue);
+            color: var(--primary-blue);
+            padding: 5px 10px;
+            cursor: pointer;
+            font-family: 'Orbitron';
+            font-size: 0.8em;
+            transition: 0.3s;
+        }
+        .code-btn:hover { background: rgba(0, 212, 255, 0.2); }
+        pre#code-content {
+            background: rgba(0, 0, 0, 0.5);
+            padding: 15px;
+            border-radius: 5px;
+            border: 1px solid rgba(0, 212, 255, 0.1);
+            overflow-x: auto;
+            flex: 1;
+            font-family: monospace;
+            color: #fff;
+            font-size: 0.9em;
+            white-space: pre-wrap;
+        }        /* --- ANIMATIONS --- */
         @keyframes rotate { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
         @keyframes rotate-reverse { from { transform: rotate(360deg); } to { transform: rotate(0deg); } }
         @keyframes pulse-text { 0%, 100% { opacity: 0.7; transform: scale(1); } 50% { opacity: 1; transform: scale(1.05); } }
@@ -242,6 +291,16 @@
     </div>
 
 
+    <div id="code-panel">
+        <div class="code-header">
+            <h3>CODE MODULE</h3>
+            <div>
+                <button class="code-btn" id="copyCodeBtn" onclick="copyCode()">COPY</button>
+                <button class="code-btn" onclick="closeCodePanel()">CLOSE</button>
+            </div>
+        </div>
+        <pre id="code-content"></pre>
+    </div>
 
     <div class="footer-info">
         <div>Powered By Atharv Wani</div>
@@ -488,6 +547,22 @@
                 "how are you jarvis": ["Systems are operating at peak efficiency, Sir. Thank you for asking.", "I am functioning perfectly, Sir.", "All cores stable. Thank you for checking in."]
             };
 
+            // Generic "Open website" command
+            if (query.startsWith("open ") || query.startsWith("go to ")) {
+                const parts = query.replace(/open |go to |the |website /, "").trim().split(' ');
+                const siteName = parts[0].toLowerCase();
+                
+                // Allow specific handlers to override if needed, but generic websites fall here
+                const specificOverrides = ["netflix", "gmail", "email", "disney", "docs", "slides", "sheets", "drive", "canva", "schoology", "notion", "spotify", "gemini"];
+                if (siteName && !specificOverrides.some(s => query.includes(s))) {
+                    window.open(`https://www.${siteName}.com`);
+                    const reply = `Opening ${siteName}.`;
+                    speak(reply);
+                    saveHistory(cmd, reply);
+                    return;
+                }
+            }
+
             if (conversational[query]) {
                 const replies = conversational[query];
                 const reply = replies[Math.floor(Math.random() * replies.length)];
@@ -692,7 +767,24 @@
                     return;
                 }
 
-                const reply = data.candidates[0].content.parts[0].text;
+                let reply = data.candidates[0].content.parts[0].text;
+                let speechText = reply;
+                
+                // Check for code blocks
+                const codeRegex = /```[\w]*\n([\s\S]*?)```/;
+                const match = reply.match(codeRegex);
+                
+                if (match) {
+                    const codeOnly = match[1].trim();
+                    document.getElementById('code-content').innerText = codeOnly;
+                    document.getElementById('code-panel').classList.add('open');
+                    
+                    // Strip the code block out of the spoken text
+                    speechText = reply.replace(/```[\s\S]*?```/g, " I have displayed the requested code on your screen, Sir. ").trim();
+                    if (!speechText) { speechText = "I have displayed the requested code on your screen, Sir."; }
+                } else {
+                    document.getElementById('code-panel').classList.remove('open');
+                }
 
                 // Append to conversation memory
                 conversationHistory.push({ role: 'user', content: query });
@@ -702,7 +794,7 @@
                     conversationHistory = conversationHistory.slice(-MAX_HISTORY_TURNS * 2);
                 }
 
-                speak(reply);
+                speak(speechText);
                 saveHistory(query, reply);
             } catch (err) {
                 console.error("AI Error:", err);
@@ -715,6 +807,20 @@
             }
         }
 
+
+        // --- CODE PANEL LOGIC ---
+        function closeCodePanel() {
+            document.getElementById('code-panel').classList.remove('open');
+        }
+
+        function copyCode() {
+            const codeText = document.getElementById('code-content').innerText;
+            navigator.clipboard.writeText(codeText).then(() => {
+                const btn = document.getElementById('copyCodeBtn');
+                btn.innerText = "COPIED!";
+                setTimeout(() => btn.innerText = "COPY", 2000);
+            });
+        }
 
         // --- INITIALIZATION ---
         window.speechSynthesis.onvoiceschanged = () => {
