@@ -81,20 +81,28 @@ Only provide ONE interactive block per response when appropriate. Encourage the 
                 });
             }
             
-            if (req.body.referenceImage) {
-                console.log("Reference Image Detected: Attaching Anchor Image for Biometric Matching.");
-                const refMatch = req.body.referenceImage.match(/^data:(image\/(png|jpeg|jpg));base64,/);
-                const refMimeType = refMatch ? refMatch[1] : "image/jpeg";
-                const refBase64Data = req.body.referenceImage.replace(/^data:image\/(png|jpeg|jpg);base64,/, "");
+            if (req.body.referenceImage || (req.body.referenceImages && req.body.referenceImages.length > 0)) {
+                console.log("Reference Image(s) Detected: Attaching Anchor Images for Biometric Matching.");
+                
                 userParts.push({
-                    text: "SYSTEM DIRECTIVE: You are an ultra-strict, military-grade biometric security AI. The image below is the registered anchor reference photo of the authorized user. The other image is the live camera feed. You MUST aggressively compare the facial bone structure, eye shape, nose shape, and overall biometric signature. If there is ANY doubt, or if it is clearly a different person (e.g. sibling, friend, different gender, different age), you MUST REJECT them with a severe security warning. DO NOT be polite if it's the wrong person. ONLY if you are 100% certain it is the exact same person, welcome them back."
+                    text: "SYSTEM DIRECTIVE: You are an ultra-strict, military-grade biometric security AI. The images provided before the live camera feed are the registered anchor reference photos of the authorized users. The last image is the live camera feed. You MUST aggressively compare the facial bone structure, eye shape, nose shape, and overall biometric signature. If the live person matches ANY of the authorized anchor photos perfectly, grant access. If there is ANY doubt, or if it is clearly a different person (e.g. sibling, friend, different gender, different age), you MUST REJECT them with a severe security warning. DO NOT be polite if it's the wrong person. ONLY if you are 100% certain it is one of the exact same authorized persons, welcome them back."
                 });
-                userParts.push({
-                    inlineData: {
-                        mimeType: refMimeType,
-                        data: refBase64Data
-                    }
-                });
+
+                const imagesToProcess = req.body.referenceImages || [req.body.referenceImage];
+                
+                for (const img of imagesToProcess) {
+                    if (!img) continue;
+                    const refMatch = img.match(/^data:(image\/(png|jpeg|jpg));base64,/);
+                    const refMimeType = refMatch ? refMatch[1] : "image/jpeg";
+                    const refBase64Data = img.replace(/^data:image\/(png|jpeg|jpg);base64,/, "");
+                    
+                    userParts.push({
+                        inlineData: {
+                            mimeType: refMimeType,
+                            data: refBase64Data
+                        }
+                    });
+                }
             }
             
             geminiContents.push({ role: 'user', parts: userParts });
@@ -223,9 +231,13 @@ Only provide ONE interactive block per response when appropriate. Encourage the 
                 orModel = "nvidia/nemotron-nano-12b-v2-vl:free";
                 let userContentArray = [];
                 
-                if (req.body.referenceImage) {
-                    userContentArray.push({ type: "text", text: "SYSTEM DIRECTIVE: You are an ultra-strict, military-grade biometric security AI. The image below is the registered anchor reference photo of the authorized user. The other image is the live camera feed. You MUST aggressively compare the facial bone structure, eye shape, nose shape, and overall biometric signature. If there is ANY doubt, or if it is clearly a different person (e.g. sibling, friend, different gender, different age), you MUST REJECT them with a severe security warning. DO NOT be polite if it's the wrong person. ONLY if you are 100% certain it is the exact same person, welcome them back." });
-                    userContentArray.push({ type: "image_url", image_url: { url: req.body.referenceImage } });
+                if (req.body.referenceImage || (req.body.referenceImages && req.body.referenceImages.length > 0)) {
+                    userContentArray.push({ type: "text", text: "SYSTEM DIRECTIVE: You are an ultra-strict, military-grade biometric security AI. The images provided before the live camera feed are the registered anchor reference photos of the authorized users. The last image is the live camera feed. You MUST aggressively compare the facial bone structure, eye shape, nose shape, and overall biometric signature. If the live person matches ANY of the authorized anchor photos perfectly, grant access. If there is ANY doubt, or if it is clearly a different person (e.g. sibling, friend, different gender, different age), you MUST REJECT them with a severe security warning. DO NOT be polite if it's the wrong person. ONLY if you are 100% certain it is one of the exact same authorized persons, welcome them back." });
+                    
+                    const imagesToProcess = req.body.referenceImages || [req.body.referenceImage];
+                    for (const img of imagesToProcess) {
+                        if (img) userContentArray.push({ type: "image_url", image_url: { url: img } });
+                    }
                 }
                 
                 userContentArray.push({ type: "text", text: userMessage });

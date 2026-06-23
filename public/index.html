@@ -361,6 +361,90 @@
             letter-spacing: 1px;
         }
 
+        /* --- LOCK SCREEN --- */
+        #lock-screen {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(2, 5, 10, 0.95);
+            backdrop-filter: blur(15px);
+            z-index: 9999;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            font-family: 'Rajdhani', sans-serif;
+            color: var(--primary-blue);
+            transition: opacity 0.5s ease;
+        }
+        #lock-screen.hidden {
+            opacity: 0;
+            pointer-events: none;
+        }
+        .lock-icon {
+            font-size: 4em;
+            margin-bottom: 20px;
+            text-shadow: var(--glow);
+            animation: pulse-text 2s infinite;
+        }
+        .lock-title {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 3em;
+            letter-spacing: 5px;
+            margin-bottom: 40px;
+            text-shadow: var(--glow);
+        }
+        .pin-container {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 30px;
+        }
+        .pin-input {
+            width: 60px;
+            height: 80px;
+            background: var(--glass-bg);
+            border: 1px solid var(--primary-blue);
+            border-radius: 10px;
+            color: white;
+            font-size: 2.5em;
+            text-align: center;
+            font-family: 'Orbitron', sans-serif;
+            box-shadow: 0 0 10px rgba(0, 212, 255, 0.2);
+            transition: all 0.3s;
+        }
+        .pin-input:focus {
+            outline: none;
+            box-shadow: 0 0 20px var(--primary-blue);
+            background: rgba(0, 212, 255, 0.1);
+        }
+        .biometric-btn {
+            background: transparent;
+            border: 1px solid var(--primary-blue);
+            color: var(--primary-blue);
+            padding: 15px 30px;
+            font-size: 1.2em;
+            font-family: 'Orbitron', sans-serif;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: all 0.3s;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            box-shadow: var(--glow);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .biometric-btn:hover {
+            background: var(--primary-blue);
+            color: var(--dark-bg);
+            box-shadow: 0 0 30px var(--primary-blue);
+        }
+        #lock-status {
+            margin-top: 20px;
+            font-size: 1.2em;
+            opacity: 0.8;
+            min-height: 24px;
+        }
+
     </style>
 </head>
 <body>
@@ -467,6 +551,105 @@
         let voices = [];
         let conversationHistory = []; // Multi-turn memory (last 10 exchanges)
         const MAX_HISTORY_TURNS = 10;
+        
+        let systemLocked = true; // Lock the system by default on load
+
+        // --- LOCK SCREEN LOGIC ---
+        const lockScreen = document.getElementById('lock-screen');
+        const lockStatus = document.getElementById('lock-status');
+        const pinInputs = document.querySelectorAll('.pin-input');
+        
+        pinInputs.forEach((input, index) => {
+            input.addEventListener('input', (e) => {
+                if (e.target.value.length === 1 && index < pinInputs.length - 1) {
+                    pinInputs[index + 1].focus();
+                }
+                checkPin();
+            });
+            input.addEventListener('keydown', (e) => {
+                if (e.key === 'Backspace' && e.target.value.length === 0 && index > 0) {
+                    pinInputs[index - 1].focus();
+                }
+            });
+        });
+
+        function checkPin() {
+            const enteredPin = Array.from(pinInputs).map(i => i.value).join('');
+            if (enteredPin.length === 4) {
+                if (enteredPin === '1234') {
+                    unlockSystem();
+                } else {
+                    lockStatus.innerText = 'ACCESS DENIED';
+                    lockStatus.style.color = '#ff3333';
+                    setTimeout(() => {
+                        pinInputs.forEach(i => i.value = '');
+                        pinInputs[0].focus();
+                        lockStatus.innerText = 'Awaiting Authorization...';
+                        lockStatus.style.color = 'var(--primary-blue)';
+                    }, 1000);
+                }
+            }
+        }
+
+        function unlockSystem() {
+            systemLocked = false;
+            lockScreen.classList.add('hidden');
+            speak("System unlocked. Welcome back, Sir.");
+        }
+
+        async function attemptBiometricUnlock() {
+            lockStatus.innerText = 'Initiating Scanner...';
+            speak("Please look directly at the camera, Sir.");
+            
+            const liveImage = await captureWebcamFrame();
+            
+            if (liveImage) {
+                const anchors = JSON.parse(localStorage.getItem('jarvis_face_references') || '[]');
+                if (anchors.length === 0) {
+                    lockStatus.innerText = 'No Biometric Profiles Found.';
+                    speak("I do not have any registered biometric anchors in your local drive. Please use the manual override code.");
+                    return;
+                }
+                
+                lockStatus.innerText = 'Scanning Facial Biometrics...';
+                try {
+                    const res = await fetch('/api/ai', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            message: "CRITICAL SECURITY SCAN: Compare my live face to the registered anchor photos. Are we the exact same human being? If I am someone else, deny me access immediately. If I am an authorized user, just say 'ACCESS GRANTED'.",
+                            history: [],
+                            training: false,
+                            image: liveImage,
+                            referenceImages: anchors
+                        })
+                    });
+                    
+                    const data = await res.json();
+                    if (data.error) throw new Error(data.error.message || data.error);
+                    
+                    let reply = data.candidates[0].content.parts[0].text.trim().toUpperCase();
+                    if (reply.includes('ACCESS GRANTED')) {
+                        unlockSystem();
+                    } else {
+                        lockStatus.innerText = 'ACCESS DENIED: Unrecognized Individual.';
+                        lockStatus.style.color = '#ff3333';
+                        speak("Access denied. Biometric signature does not match any authorized users.");
+                        setTimeout(() => {
+                            lockStatus.innerText = 'Awaiting Authorization...';
+                            lockStatus.style.color = 'var(--primary-blue)';
+                        }, 2000);
+                    }
+                } catch (err) {
+                    console.error("Biometric Unlock Error:", err);
+                    lockStatus.innerText = 'Neural Link Error.';
+                    speak("I apologize, Sir. Neural link is offline.");
+                }
+            } else {
+                lockStatus.innerText = 'Camera Access Denied.';
+                speak("I require camera access to perform a biometric scan.");
+            }
+        }
 
         // --- CLOCK & DATE LOGIC (CST/CDT) ---
         function updateClock() {
@@ -683,6 +866,7 @@
         }
 
         micBtn.onclick = () => {
+            if (systemLocked) return;
             if (isListening) stopListening();
             else startListening();
         };
@@ -1019,15 +1203,17 @@
             }
 
             // --- FACIAL RECOGNITION & BIOMETRICS ---
-            if (query.includes("register my face")) {
+            if (query.includes("register my face") || query.includes("register a new face")) {
                 logEl.innerText = "INITIALIZING BIOMETRIC REGISTRATION...";
-                speak("Please look directly at the camera, Sir. I am taking your reference photo now.");
+                speak("Please look directly at the camera, Sir. I am taking the reference photo now.");
                 
                 const base64Image = await captureWebcamFrame();
                 
                 if (base64Image) {
-                    localStorage.setItem('jarvis_face_reference', base64Image);
-                    speak("Your facial biometrics have been successfully registered and securely encrypted to your local drive.");
+                    let anchors = JSON.parse(localStorage.getItem('jarvis_face_references') || '[]');
+                    anchors.push(base64Image);
+                    localStorage.setItem('jarvis_face_references', JSON.stringify(anchors));
+                    speak(`Biometrics registered. There are now ${anchors.length} authorized profiles saved to your local drive.`);
                     saveHistory(cmd, "Biometric anchor photo saved.");
                 } else {
                     speak("I apologize, Sir. Camera access was denied or the capture failed.");
@@ -1037,9 +1223,9 @@
             }
 
             if (query.includes("run facial recognition") || query.includes("who am i") || query.includes("analyze my face")) {
-                const anchorImage = localStorage.getItem('jarvis_face_reference');
-                if (!anchorImage) {
-                    speak("I do not have a registered biometric anchor for you, Sir. Please tell me to register my face first.");
+                const anchors = JSON.parse(localStorage.getItem('jarvis_face_references') || '[]');
+                if (anchors.length === 0) {
+                    speak("I do not have any registered biometric anchors, Sir. Please tell me to register my face first.");
                     saveHistory(cmd, "Facial Recognition failed (No anchor).");
                     return;
                 }
@@ -1050,8 +1236,8 @@
                 const liveImage = await captureWebcamFrame();
                 
                 if (liveImage) {
-                    saveHistory(cmd, "Live photo captured. Sending to neural core for 1-to-1 matching.");
-                    callAI("CRITICAL SECURITY SCAN: Compare my live face to the registered anchor photo. Are we the exact same human being? If I am someone else, deny me access immediately. If I am the authorized user, greet me and analyze my current facial expression.", liveImage, anchorImage);
+                    saveHistory(cmd, "Live photo captured. Sending to neural core for biometric matching.");
+                    callAI("CRITICAL SECURITY SCAN: Compare my live face to the array of registered anchor photos. Are we one of the exact same human beings? If I am someone else, deny me access immediately. If I am an authorized user, greet me and analyze my current facial expression.", liveImage, anchors);
                 } else {
                     speak("I apologize, Sir. Camera access was denied or failed.");
                     saveHistory(cmd, "Facial Recognition failed.");
@@ -1386,19 +1572,26 @@
         }
 
 
-        async function callAI(query, image = null, referenceImage = null) {
+        async function callAI(query, image = null, referenceData = null) {
             logEl.innerText = "TRANSMITTING TO CORE...";
             try {
+                const payload = {
+                    message: query,
+                    history: conversationHistory,
+                    training: isTrainingMode,
+                    image: image
+                };
+                
+                if (Array.isArray(referenceData)) {
+                    payload.referenceImages = referenceData;
+                } else if (referenceData) {
+                    payload.referenceImage = referenceData;
+                }
+
                 const res = await fetch('/api/ai', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        message: query,
-                        history: conversationHistory,
-                        training: isTrainingMode,
-                        image: image,
-                        referenceImage: referenceImage
-                    })
+                    body: JSON.stringify(payload)
                 });
                 
                 const data = await res.json();
