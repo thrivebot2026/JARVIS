@@ -448,6 +448,21 @@
     </style>
 </head>
 <body>
+    <!-- LOCK SCREEN OVERLAY -->
+    <div id="lock-screen">
+        <div class="lock-icon"><i class="fas fa-lock"></i></div>
+        <div class="lock-title">JARVIS SYSTEM LOCKED</div>
+        <div class="pin-container">
+            <input type="password" class="pin-input" maxlength="1" data-index="0" />
+            <input type="password" class="pin-input" maxlength="1" data-index="1" />
+            <input type="password" class="pin-input" maxlength="1" data-index="2" />
+            <input type="password" class="pin-input" maxlength="1" data-index="3" />
+        </div>
+        <button class="biometric-btn" id="biometric-unlock-btn" onclick="attemptBiometricUnlock()">
+            <i class="fas fa-fingerprint"></i> INITIATE BIOMETRIC SCAN
+        </button>
+        <div id="lock-status">Awaiting Authorization...</div>
+    </div>
     <div class="hud-overlay"></div>
 
     <div id="status-bar">
