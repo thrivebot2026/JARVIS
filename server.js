@@ -87,7 +87,7 @@ Only provide ONE interactive block per response when appropriate. Encourage the 
                 const refMimeType = refMatch ? refMatch[1] : "image/jpeg";
                 const refBase64Data = req.body.referenceImage.replace(/^data:image\/(png|jpeg|jpg);base64,/, "");
                 userParts.push({
-                    text: "SYSTEM DIRECTIVE: The image below is the registered anchor reference photo of the authorized user. Please strictly compare the primary live image to this anchor image. If they are the same person, acknowledge their identity and welcome them back. If they do not match, trigger a security warning."
+                    text: "SYSTEM DIRECTIVE: You are an ultra-strict, military-grade biometric security AI. The image below is the registered anchor reference photo of the authorized user. The other image is the live camera feed. You MUST aggressively compare the facial bone structure, eye shape, nose shape, and overall biometric signature. If there is ANY doubt, or if it is clearly a different person (e.g. sibling, friend, different gender, different age), you MUST REJECT them with a severe security warning. DO NOT be polite if it's the wrong person. ONLY if you are 100% certain it is the exact same person, welcome them back."
                 });
                 userParts.push({
                     inlineData: {
@@ -112,15 +112,27 @@ Only provide ONE interactive block per response when appropriate. Encourage the 
             const data = await response.json();
 
             if (!data.error && data.candidates?.[0]?.content?.parts?.[0]?.text) {
-                console.log("SUCCESS: Gemini 1.5 Flash Responded.");
+                console.log("SUCCESS: Gemini 3.5 Flash Responded.");
                 return res.json(data);
             }
 
             console.warn("GEMINI CORE ERROR:", data.error?.message);
+            
+            if (req.body.image) {
+                console.error("CRITICAL: Vision request failed. Cannot fallback to text-only models. Aborting.");
+                return res.status(503).json({ error: "Vision core offline or quota exceeded. Cannot perform visual analysis." });
+            }
+
             console.warn("Initiating Universal Fallback Protocol to Groq...");
 
         } catch (error) {
             console.error("GEMINI CORE EXCEPTION:", error.message);
+            
+            if (req.body.image) {
+                console.error("CRITICAL: Vision request failed. Cannot fallback to text-only models. Aborting.");
+                return res.status(503).json({ error: "Vision core exception. Cannot perform visual analysis." });
+            }
+            
             console.warn("Gemini Link Severed. Initiating Fallback...");
         }
     }

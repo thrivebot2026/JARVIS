@@ -1051,7 +1051,7 @@
                 
                 if (liveImage) {
                     saveHistory(cmd, "Live photo captured. Sending to neural core for 1-to-1 matching.");
-                    callAI("Please perform a strict 1-to-1 biometric comparison between the live photo and the anchor photo provided in the system directive. Conclude your analysis by greeting the user and describing their current expression.", liveImage, anchorImage);
+                    callAI("CRITICAL SECURITY SCAN: Compare my live face to the registered anchor photo. Are we the exact same human being? If I am someone else, deny me access immediately. If I am the authorized user, greet me and analyze my current facial expression.", liveImage, anchorImage);
                 } else {
                     speak("I apologize, Sir. Camera access was denied or failed.");
                     saveHistory(cmd, "Facial Recognition failed.");
