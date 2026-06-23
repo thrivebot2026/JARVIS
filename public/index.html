@@ -617,9 +617,10 @@
         async function loadFaceModels() {
             try {
                 lockStatus.innerText = 'Loading Biometric Neural Nets...';
-                await faceapi.nets.ssdMobilenetv1.loadFromUri('https://cdn.jsdelivr.net/npm/@vladmandic/face-api/model/');
-                await faceapi.nets.faceLandmark68Net.loadFromUri('https://cdn.jsdelivr.net/npm/@vladmandic/face-api/model/');
-                await faceapi.nets.faceRecognitionNet.loadFromUri('https://cdn.jsdelivr.net/npm/@vladmandic/face-api/model/');
+                const modelUrl = 'https://justadudewhohacks.github.io/face-api.js/models';
+                await faceapi.nets.ssdMobilenetv1.loadFromUri(modelUrl);
+                await faceapi.nets.faceLandmark68Net.loadFromUri(modelUrl);
+                await faceapi.nets.faceRecognitionNet.loadFromUri(modelUrl);
                 faceModelsLoaded = true;
                 lockStatus.innerText = 'Awaiting Authorization...';
             } catch (err) {
@@ -648,15 +649,23 @@
                         resolve(); 
                     };
                 });
-                await new Promise(r => setTimeout(r, 500)); // stabilize camera
+                await new Promise(r => setTimeout(r, 800)); // wait for camera exposure to adjust
                 
-                const detection = await faceapi.detectSingleFace(video).withFaceLandmarks().withFaceDescriptor();
+                // Draw to canvas to guarantee an image is passed to face-api
+                const canvas = document.createElement('canvas');
+                canvas.width = video.videoWidth;
+                canvas.height = video.videoHeight;
+                canvas.getContext('2d').drawImage(video, 0, 0, canvas.width, canvas.height);
+                
+                const detection = await faceapi.detectSingleFace(canvas).withFaceLandmarks().withFaceDescriptor();
                 stream.getTracks().forEach(track => track.stop());
                 
                 if (detection) {
                     return Array.from(detection.descriptor);
+                } else {
+                    console.error("Face API did not detect a face in the canvas.");
+                    return null;
                 }
-                return null;
             } catch (err) {
                 console.error("Webcam descriptor capture error:", err);
                 return null;
