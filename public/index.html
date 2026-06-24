@@ -955,7 +955,7 @@
         let keepAliveInterval = null;
         let globalSpeechId = 0;
 
-        function speak(text, langCode = 'en') {
+        function speak(text, langCode = 'en', sentiment = 'NEUTRAL') {
             globalSpeechId++;
             const currentSpeechId = globalSpeechId;
             
@@ -1005,11 +1005,27 @@
                 // Slow down for Marathi (or Hindi if used as fallback)
                 if (langCode === 'mr' || langCode === 'hi') {
                     utter.rate = 0.9;
+                    utter.pitch = 0.9;
                 } else {
-                    utter.rate = 1.3;
+                    // Apply emotional vocal tone based on sentiment
+                    if (sentiment === 'EXCITED') {
+                        utter.pitch = 1.2;
+                        utter.rate = 1.4;
+                    } else if (sentiment === 'FRUSTRATED' || sentiment === 'NEGATIVE') {
+                        utter.pitch = 0.7;
+                        utter.rate = 1.1;
+                    } else if (sentiment === 'POSITIVE') {
+                        utter.pitch = 1.1;
+                        utter.rate = 1.2;
+                    } else if (sentiment === 'CONFUSED') {
+                        utter.pitch = 1.3;
+                        utter.rate = 1.1;
+                    } else { // NEUTRAL
+                        utter.pitch = 0.9;
+                        utter.rate = 1.3;
+                    }
                 }
                 
-                utter.pitch = 0.9;
                 utter.onend = () => {
                     if (globalSpeechId !== currentSpeechId || !isSpeaking) return; 
                     chunkIndex++;
@@ -1679,9 +1695,10 @@
                 let reply = data.candidates[0].content.parts[0].text;
                 
                 // Parse Sentiment
+                let sentiment = 'NEUTRAL';
                 let sentimentMatch = reply.match(/\[SENTIMENT:\s*([A-Z]+)\s*\]/i);
                 if (sentimentMatch) {
-                    const sentiment = sentimentMatch[1].toUpperCase();
+                    sentiment = sentimentMatch[1].toUpperCase();
                     reply = reply.replace(/\[SENTIMENT:\s*[A-Z]+\s*\]\s*/i, '').trim();
                     
                     const sentimentEl = document.getElementById('sentiment-value');
@@ -1766,7 +1783,7 @@
                     .replace(/\s+/g, ' ')
                     .trim();
 
-                speak(speechText, langCode);
+                speak(speechText, langCode, sentiment);
                 saveHistory(query, reply);
             } catch (err) {
                 console.error("AI Error:", err);
