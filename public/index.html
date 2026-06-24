@@ -619,6 +619,8 @@
         let conversationHistory = []; // Multi-turn memory (last 10 exchanges)
         const MAX_HISTORY_TURNS = 10;
         let relationshipScore = localStorage.getItem('jarvis_relationship') ? parseInt(localStorage.getItem('jarvis_relationship')) : 100;
+        let jarvisXp = localStorage.getItem('jarvis_xp') ? parseInt(localStorage.getItem('jarvis_xp')) : 0;
+        let jarvisLevel = localStorage.getItem('jarvis_level') ? parseInt(localStorage.getItem('jarvis_level')) : 1;
         
         let systemLocked = true; // Lock the system by default on load
 
@@ -1724,6 +1726,26 @@
                     reply = reply.replace(/\[APOLOGY_ACCEPTED\]/i, '').trim();
                     logEl.innerText = "RELATIONSHIP REPAIRED";
                     saveHistory("System", "Relationship Repaired. Apology Accepted.");
+                }
+
+                // Parse XP
+                let xpMatch = reply.match(/\[ADD_XP:\s*(\d+)\s*\]/i);
+                if (xpMatch) {
+                    let gainedXp = parseInt(xpMatch[1]);
+                    jarvisXp += gainedXp;
+                    reply = reply.replace(/\[ADD_XP:\s*\d+\s*\]/i, '').trim();
+                    
+                    if (jarvisXp >= 500) {
+                        jarvisXp = jarvisXp - 500;
+                        jarvisLevel += 1;
+                        localStorage.setItem('jarvis_level', jarvisLevel);
+                        setTimeout(() => {
+                            speak(`Congratulations Sir. You have leveled up. You are now level ${jarvisLevel}.`);
+                            saveHistory("System", `LEVEL UP! You are now Level ${jarvisLevel}`);
+                        }, 2000);
+                    }
+                    localStorage.setItem('jarvis_xp', jarvisXp);
+                    saveHistory("System", `+${gainedXp} XP (Total: ${jarvisXp}/500) | Lvl ${jarvisLevel}`);
                 }
 
                 // Parse Sentiment
