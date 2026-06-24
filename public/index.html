@@ -1068,6 +1068,7 @@
 
         async function handleCommand(cmd) {
             resetActivity();
+            lastCommandTimestamp = Date.now();
             const query = cmd.toLowerCase().replace(/[.,\/#!$%\^&\*;:{}=\-_`~()]/g,"").trim(); // Clean input
             
             // --- WORKSPACE ROUTINE CREATION STATE ---
@@ -2211,6 +2212,29 @@
                 enterDreamMode();
             }
         }, 5000); // Check every 5s
+
+        // --- PROACTIVE CHECK-IN LOGIC ---
+        let lastCommandTimestamp = Date.now();
+        const PROACTIVE_TIMEOUT_MS = 2 * 60 * 60 * 1000; // 2 hours
+
+        setInterval(() => {
+            if (systemLocked || dreamModeActive || isSpeaking) return;
+
+            const timeSinceLastCommand = Date.now() - lastCommandTimestamp;
+            const timeSinceLastActivity = Date.now() - lastActivityTimestamp;
+
+            // If we haven't spoken in 2 hours, BUT the user is currently active (moved mouse within 5 mins)
+            if (timeSinceLastCommand > PROACTIVE_TIMEOUT_MS && timeSinceLastActivity < 5 * 60 * 1000) {
+                lastCommandTimestamp = Date.now(); // reset so we don't spam
+                const checkInPhrases = [
+                    "Sir, you have been working in silence for quite some time. Do you require any assistance?",
+                    "Pardon the interruption, Sir, but it has been a while since your last command. Should I queue up some focus music?",
+                    "Sir, your productivity is commendable. Let me know if you need me to summarize the news or check your calendar."
+                ];
+                const phrase = checkInPhrases[Math.floor(Math.random() * checkInPhrases.length)];
+                speak(phrase, 'en', 'NEUTRAL');
+            }
+        }, 60000); // Check once a minute
 
         // --- INITIALIZATION ---
         window.speechSynthesis.onvoiceschanged = () => {
