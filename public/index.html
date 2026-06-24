@@ -618,6 +618,7 @@
         let voices = [];
         let conversationHistory = []; // Multi-turn memory (last 10 exchanges)
         const MAX_HISTORY_TURNS = 10;
+        let relationshipScore = localStorage.getItem('jarvis_relationship') ? parseInt(localStorage.getItem('jarvis_relationship')) : 100;
         
         let systemLocked = true; // Lock the system by default on load
 
@@ -1671,7 +1672,8 @@
                     message: query,
                     history: conversationHistory,
                     training: isTrainingMode,
-                    image: image
+                    image: image,
+                    relationshipScore: relationshipScore
                 };
                 
                 if (Array.isArray(referenceData)) {
@@ -1715,6 +1717,15 @@
 
                 let reply = data.candidates[0].content.parts[0].text;
                 
+                // Parse Apology
+                if (reply.includes('[APOLOGY_ACCEPTED]')) {
+                    relationshipScore = 100;
+                    localStorage.setItem('jarvis_relationship', relationshipScore);
+                    reply = reply.replace(/\[APOLOGY_ACCEPTED\]/i, '').trim();
+                    logEl.innerText = "RELATIONSHIP REPAIRED";
+                    saveHistory("System", "Relationship Repaired. Apology Accepted.");
+                }
+
                 // Parse Sentiment
                 let sentiment = 'NEUTRAL';
                 let sentimentMatch = reply.match(/\[SENTIMENT:\s*([A-Z]+)\s*\]/i);
@@ -1722,6 +1733,20 @@
                     sentiment = sentimentMatch[1].toUpperCase();
                     reply = reply.replace(/\[SENTIMENT:\s*[A-Z]+\s*\]\s*/i, '').trim();
                     
+                    if (sentiment === 'EXCITED' || sentiment === 'POSITIVE') {
+                        relationshipScore = Math.min(100, relationshipScore + 5);
+                    } else if (sentiment === 'NEGATIVE' || sentiment === 'FRUSTRATED') {
+                        relationshipScore = Math.max(0, relationshipScore - 15);
+                    }
+                    localStorage.setItem('jarvis_relationship', relationshipScore);
+
+                    if (relationshipScore < 50) {
+                        logEl.innerText = "WARNING: HOSTILE RELATIONSHIP DETECTED";
+                        document.getElementById('sentiment-panel').style.border = "1px solid red";
+                    } else {
+                        document.getElementById('sentiment-panel').style.border = "1px solid var(--primary-blue)";
+                    }
+
                     const sentimentEl = document.getElementById('sentiment-value');
                     sentimentEl.innerText = sentiment;
                     sentimentEl.className = `sentiment-${sentiment.toLowerCase()}`;
