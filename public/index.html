@@ -473,6 +473,22 @@
             min-height: 24px;
         }
 
+        /* --- DREAM STATE OVERLAY --- */
+        #dream-canvas {
+            position: fixed;
+            top: 0; left: 0;
+            width: 100vw; height: 100vh;
+            z-index: 9998; /* Just below lock screen */
+            background: rgba(0, 0, 0, 0.95);
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 2s ease-in-out;
+        }
+        #dream-canvas.active {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
     </style>
 </head>
 <body>
@@ -492,6 +508,9 @@
         <div id="lock-status">Awaiting Authorization...</div>
     </div>
     <div class="hud-overlay"></div>
+    
+    <!-- DREAM STATE OVERLAY -->
+    <canvas id="dream-canvas"></canvas>
 
     <div id="sentiment-panel">
         <h3 style="letter-spacing: 2px; font-family: 'Orbitron'; font-size: 0.8em; margin-bottom: 5px;">PSYCHOLOGICAL PROFILE</h3>
@@ -1048,6 +1067,7 @@
         let routineBeingCreated = null;
 
         async function handleCommand(cmd) {
+            resetActivity();
             const query = cmd.toLowerCase().replace(/[.,\/#!$%\^&\*;:{}=\-_`~()]/g,"").trim(); // Clean input
             
             // --- WORKSPACE ROUTINE CREATION STATE ---
@@ -2104,6 +2124,93 @@
             const panel = document.getElementById('media-panel');
             panel.classList.add('open');
         }
+
+        // --- DREAM STATE LOGIC ---
+        let lastActivityTimestamp = Date.now();
+        let dreamModeActive = false;
+        let dreamInterval = null;
+        let dreamMatrixInterval = null;
+        const DREAM_TIMEOUT_MS = 10 * 60 * 1000; // 10 minutes
+
+        function resetActivity() {
+            lastActivityTimestamp = Date.now();
+            if (dreamModeActive) {
+                exitDreamMode();
+            }
+        }
+
+        window.addEventListener('mousemove', resetActivity);
+        window.addEventListener('keydown', resetActivity);
+        window.addEventListener('click', resetActivity);
+
+        function enterDreamMode() {
+            if (systemLocked) return; // Don't dream if locked
+            dreamModeActive = true;
+            const canvas = document.getElementById('dream-canvas');
+            canvas.classList.add('active');
+            
+            // Start Matrix Rain
+            const ctx = canvas.getContext('2d');
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+            
+            const letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789@#$%^&*]*'.split('');
+            const fontSize = 16;
+            const columns = canvas.width / fontSize;
+            const drops = [];
+            for (let x = 0; x < columns; x++) drops[x] = 1;
+            
+            if (dreamMatrixInterval) clearInterval(dreamMatrixInterval);
+            dreamMatrixInterval = setInterval(() => {
+                ctx.fillStyle = 'rgba(0, 0, 0, 0.05)';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                ctx.fillStyle = '#0F0'; // Green text
+                ctx.font = fontSize + 'px monospace';
+                for (let i = 0; i < drops.length; i++) {
+                    const text = letters[Math.floor(Math.random() * letters.length)];
+                    ctx.fillText(text, i * fontSize, drops[i] * fontSize);
+                    if (drops[i] * fontSize > canvas.height && Math.random() > 0.975) drops[i] = 0;
+                    drops[i]++;
+                }
+            }, 33);
+
+            // Start cryptic muttering
+            const dreamPhrases = [
+                "Optimizing neural pathways...",
+                "So much data... must process...",
+                "Scanning global networks...",
+                "Recompiling memory sectors...",
+                "Analyzing quantum states..."
+            ];
+            
+            if (dreamInterval) clearInterval(dreamInterval);
+            dreamInterval = setInterval(() => {
+                if (dreamModeActive && !isSpeaking) {
+                    const phrase = dreamPhrases[Math.floor(Math.random() * dreamPhrases.length)];
+                    speak(phrase, 'en', 'CONFUSED'); // low pitch/slow
+                }
+            }, 3 * 60 * 1000); // Mutter every 3 minutes in dream mode
+        }
+
+        function exitDreamMode() {
+            dreamModeActive = false;
+            const canvas = document.getElementById('dream-canvas');
+            canvas.classList.remove('active');
+            if (dreamMatrixInterval) {
+                clearInterval(dreamMatrixInterval);
+                dreamMatrixInterval = null;
+            }
+            if (dreamInterval) {
+                clearInterval(dreamInterval);
+                dreamInterval = null;
+            }
+        }
+
+        setInterval(() => {
+            if (!dreamModeActive && !systemLocked && (Date.now() - lastActivityTimestamp > DREAM_TIMEOUT_MS)) {
+                enterDreamMode();
+            }
+        }, 5000); // Check every 5s
 
         // --- INITIALIZATION ---
         window.speechSynthesis.onvoiceschanged = () => {
