@@ -94,6 +94,30 @@
             animation: pulse-text 2s ease-in-out infinite;
         }
 
+        /* Soundwaves */
+        .soundwaves {
+            position: absolute;
+            width: 350px;
+            height: 350px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            pointer-events: none;
+        }
+        .wave {
+            position: absolute;
+            border: 2px solid var(--primary-blue);
+            border-radius: 50%;
+            width: 100%; height: 100%;
+            opacity: 0;
+            transition: 0.3s;
+        }
+        .active-voice .wave {
+            animation: wave-ping 1.5s cubic-bezier(0, 0, 0.2, 1) infinite;
+        }
+        .active-voice .wave:nth-child(2) { animation-delay: 0.5s; }
+        .active-voice .wave:nth-child(3) { animation-delay: 1s; }
+
         /* --- MIC BUTTON --- */
         .controls {
             margin-top: 50px;
@@ -485,8 +509,11 @@
     </div>
 
     <div class="main-container">
-        <!-- Replaced old waves with simulated canvas visualizer -->
-        <canvas id="audio-visualizer" width="350" height="150" style="position:absolute; bottom: -80px; z-index: 5; pointer-events:none;"></canvas>
+        <div class="soundwaves" id="waves">
+            <div class="wave"></div>
+            <div class="wave"></div>
+            <div class="wave"></div>
+        </div>
 
         <div class="jarvis-circle" id="core-circle">
             <div class="ring outer-ring"></div>
@@ -560,6 +587,7 @@
         const dateEl = document.getElementById('date');
         const micBtn = document.getElementById('micBtn');
         const logEl = document.getElementById('log');
+        const wavesEl = document.getElementById('waves');
         const historyPanel = document.getElementById('history-panel');
         const historyContent = document.getElementById('history-content');
 
@@ -739,7 +767,9 @@
                 }
 
                 if (finalTranscript.trim()) {
-                    logEl.innerText = "PROCESSING AUDIO..."; handleCommand(finalTranscript.trim());
+                    logEl.innerText = "COMMAND RECEIVED: " + finalTranscript.trim();
+                    wavesEl.classList.remove('active-voice');
+                    handleCommand(finalTranscript.trim());
                 } else if (interimTranscript.trim()) {
                     logEl.innerText = "LISTENING: " + interimTranscript.trim();
                 }
@@ -871,6 +901,7 @@
             isListening = true;
             micBtn.classList.add('active');
             logEl.innerText = "LISTENING...";
+            wavesEl.classList.add('active-voice');
             recognition.start();
         }
 
@@ -921,82 +952,6 @@
             return chunks;
         }
 
-        /* --- AUDIO VISUALIZER --- */
-        const visualizerCanvas = document.getElementById('audio-visualizer');
-        const visualizerCtx = visualizerCanvas ? visualizerCanvas.getContext('2d') : null;
-        let visualizerAnimId = null;
-        let currentSentimentIntensity = 1; // Base multiplier
-        
-        function drawVisualizer() {
-            if (!visualizerCtx || !isSpeaking) return;
-            visualizerAnimId = requestAnimationFrame(drawVisualizer);
-            
-            const w = visualizerCanvas.width;
-            const h = visualizerCanvas.height;
-            visualizerCtx.clearRect(0, 0, w, h);
-            
-            const numBars = 12;
-            const barWidth = 15;
-            const spacing = 10;
-            const totalWidth = (numBars * barWidth) + ((numBars - 1) * spacing);
-            const startX = (w - totalWidth) / 2;
-            
-            for (let i = 0; i < numBars; i++) {
-                // Generate a random height based on sentiment intensity
-                let baseHeight = Math.random() * (h * 0.8) * currentSentimentIntensity;
-                // Ensure at least a tiny bit of height so it doesn't look dead
-                if (baseHeight < 5) baseHeight = 5 + Math.random() * 10;
-                
-                // Draw glow
-                visualizerCtx.shadowBlur = 15;
-                visualizerCtx.shadowColor = '#00d4ff';
-                visualizerCtx.fillStyle = '#00d4ff';
-                
-                // If intensity is high (e.g. EXCITED, NEGATIVE), shift color occasionally
-                if (currentSentimentIntensity > 1.2 && Math.random() > 0.8) {
-                    visualizerCtx.shadowColor = '#00ff88'; // Add some green spark
-                    visualizerCtx.fillStyle = '#00ff88';
-                }
-                if (currentSentimentIntensity < 0.8) {
-                    visualizerCtx.shadowColor = '#0055ff'; // Deeper blue for chill/sad
-                    visualizerCtx.fillStyle = '#0055ff';
-                }
-
-                // Center align the bars vertically
-                const y = (h - baseHeight) / 2;
-                const x = startX + i * (barWidth + spacing);
-                
-                // Draw rounded rect (approximation)
-                visualizerCtx.beginPath();
-                visualizerCtx.roundRect(x, y, barWidth, baseHeight, 5);
-                visualizerCtx.fill();
-            }
-        }
-        
-        function startVisualizer(sentiment) {
-            if (!visualizerCanvas) return;
-            // Determine intensity
-            if (sentiment === 'EXCITED') currentSentimentIntensity = 1.5;
-            else if (sentiment === 'POSITIVE') currentSentimentIntensity = 1.2;
-            else if (sentiment === 'FRUSTRATED' || sentiment === 'NEGATIVE') currentSentimentIntensity = 1.6; // High erratic spikes
-            else if (sentiment === 'CONFUSED') currentSentimentIntensity = 0.8;
-            else currentSentimentIntensity = 1.0; // NEUTRAL
-            
-            if (!visualizerAnimId) {
-                drawVisualizer();
-            }
-        }
-        
-        function stopVisualizer() {
-            if (visualizerAnimId) {
-                cancelAnimationFrame(visualizerAnimId);
-                visualizerAnimId = null;
-            }
-            if (visualizerCtx) {
-                visualizerCtx.clearRect(0, 0, visualizerCanvas.width, visualizerCanvas.height);
-            }
-        }
-
         let keepAliveInterval = null;
         let globalSpeechId = 0;
 
@@ -1006,7 +961,6 @@
             
             // Abort previous TTS queue if one is running
             isSpeaking = false;
-            stopVisualizer();
             window.speechSynthesis.cancel();
             if (keepAliveInterval) { clearInterval(keepAliveInterval); keepAliveInterval = null; }
 
@@ -1015,7 +969,7 @@
             isSpeaking = true;
 
             logEl.innerText = "JARVIS IS SPEAKING...";
-            startVisualizer(sentiment);
+            wavesEl.classList.add('active-voice');
 
             // Keep-alive workaround for Chrome's 15s TTS pause bug
             keepAliveInterval = setInterval(() => {
@@ -1033,7 +987,7 @@
                         keepAliveInterval = null;
                         isSpeaking = false;
                         lastSpeechTime = Date.now();
-                        stopVisualizer();
+                        wavesEl.classList.remove('active-voice');
                         logEl.innerText = "SYSTEM COOLDOWN (3S)...";
                         setTimeout(() => {
                             if (!isSpeaking && Date.now() - lastSpeechTime >= 3000) {
