@@ -249,6 +249,30 @@
             0% { transform: scale(0.8); opacity: 0.8; }
             100% { transform: scale(1.4); opacity: 0; }
         }
+        
+        @keyframes flash-fade {
+            0% { opacity: 0; }
+            10% { opacity: 1; }
+            100% { opacity: 0; }
+        }
+        .level-up-flash-overlay {
+            position: fixed;
+            top: 0; left: 0;
+            width: 100vw; height: 100vh;
+            background: rgba(0, 255, 255, 0.3);
+            z-index: 9997;
+            pointer-events: none;
+            opacity: 0;
+            animation: flash-fade 2s ease-out forwards;
+        }
+        @keyframes core-overdrive {
+            0% { transform: scale(1); filter: brightness(1); }
+            10% { transform: scale(1.2); filter: brightness(2) drop-shadow(0 0 50px #00d4ff); }
+            100% { transform: scale(1); filter: brightness(1); }
+        }
+        .core-overdrive {
+            animation: core-overdrive 2s ease-out;
+        }
 
         .console-log {
             margin-top: 15px;
@@ -1739,10 +1763,41 @@
                         jarvisXp = jarvisXp - 500;
                         jarvisLevel += 1;
                         localStorage.setItem('jarvis_level', jarvisLevel);
+                        
                         setTimeout(() => {
-                            speak(`Congratulations Sir. You have leveled up. You are now level ${jarvisLevel}.`);
+                            // 1. Play sci-fi sound effect
+                            const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                            const osc = audioCtx.createOscillator();
+                            const gainNode = audioCtx.createGain();
+                            osc.connect(gainNode);
+                            gainNode.connect(audioCtx.destination);
+                            osc.type = 'sine';
+                            osc.frequency.setValueAtTime(400, audioCtx.currentTime);
+                            osc.frequency.exponentialRampToValueAtTime(1200, audioCtx.currentTime + 0.5);
+                            gainNode.gain.setValueAtTime(0.5, audioCtx.currentTime);
+                            gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 1);
+                            osc.start();
+                            osc.stop(audioCtx.currentTime + 1);
+
+                            // 2. Trigger Flash Overlay
+                            const overlay = document.createElement('div');
+                            overlay.className = 'level-up-flash-overlay';
+                            document.body.appendChild(overlay);
+
+                            // 3. Trigger Core Overdrive
+                            const core = document.getElementById('core-circle');
+                            core.classList.add('core-overdrive');
+
+                            // Cleanup visual effects
+                            setTimeout(() => {
+                                overlay.remove();
+                                core.classList.remove('core-overdrive');
+                            }, 2000);
+
+                            // Announce
+                            speak(`Congratulations Sir. You have leveled up. You are now level ${jarvisLevel}.`, 'en', 'EXCITED');
                             saveHistory("System", `LEVEL UP! You are now Level ${jarvisLevel}`);
-                        }, 2000);
+                        }, 1000);
                     }
                     localStorage.setItem('jarvis_xp', jarvisXp);
                     saveHistory("System", `+${gainedXp} XP (Total: ${jarvisXp}/500) | Lvl ${jarvisLevel}`);
