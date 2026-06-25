@@ -17,6 +17,28 @@ const GROQ_API_KEY_3 = process.env.GROQ_API_KEY_3;
 const groqKeys = [GROQ_API_KEY, GROQ_API_KEY_2, GROQ_API_KEY_3].filter(Boolean);
 const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY;
 
+app.get('/api/system', async (req, res) => {
+    try {
+        const [cpu, mem, osInfo, currentLoad] = await Promise.all([
+            si.cpu(),
+            si.mem(),
+            si.osInfo(),
+            si.currentLoad()
+        ]);
+        
+        res.json({
+            cpuInfo: `${cpu.manufacturer} ${cpu.brand} @ ${cpu.speed}GHz`,
+            cpuLoad: currentLoad.currentLoad.toFixed(1),
+            totalMem: (mem.total / (1024 * 1024 * 1024)).toFixed(2),
+            freeMem: (mem.free / (1024 * 1024 * 1024)).toFixed(2),
+            platform: osInfo.platform,
+            uptime: Math.floor(process.uptime()),
+        });
+    } catch (err) {
+        res.status(500).json({ error: "System fetch failed" });
+    }
+});
+
 app.post('/api/ai', async (req, res) => {
     console.log("--- New AI Request Received ---");
 

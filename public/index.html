@@ -275,6 +275,73 @@
             animation: core-overdrive 2s ease-out;
         }
 
+        /* --- IRON MAN HUD MODE --- */
+        #iron-man-hud {
+            display: none;
+            position: fixed;
+            top: 0; left: 0;
+            width: 100vw; height: 100vh;
+            pointer-events: none;
+            z-index: 9999;
+            background: radial-gradient(circle at center, rgba(0, 212, 255, 0.02) 0%, rgba(0, 15, 30, 0.6) 100%);
+            border: 2px solid rgba(0, 212, 255, 0.3);
+            box-shadow: inset 0 0 100px rgba(0, 212, 255, 0.2);
+            overflow: hidden;
+        }
+        .hud-corner {
+            position: absolute;
+            width: 300px; height: 300px;
+            border: 2px dashed rgba(0, 212, 255, 0.4);
+            border-radius: 50%;
+            opacity: 0.3;
+        }
+        .hud-corner.tl { top: -150px; left: -150px; animation: rotate 20s linear infinite; }
+        .hud-corner.tr { top: -150px; right: -150px; animation: rotate-reverse 25s linear infinite; }
+        .hud-corner.bl { bottom: -150px; left: -150px; animation: rotate-reverse 22s linear infinite; }
+        .hud-corner.br { bottom: -150px; right: -150px; animation: rotate 18s linear infinite; }
+        
+        .hud-reticle {
+            position: absolute;
+            width: 100px; height: 100px;
+            border: 1px solid rgba(0, 212, 255, 0.8);
+            border-radius: 50%;
+            top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            transition: top 0.1s ease-out, left 0.1s ease-out;
+            pointer-events: none;
+            box-shadow: 0 0 20px rgba(0, 212, 255, 0.5);
+            display: flex; justify-content: center; align-items: center;
+        }
+        .hud-reticle::before {
+            content: ''; position: absolute;
+            width: 120%; height: 120%;
+            border: 1px dashed rgba(0, 212, 255, 0.4);
+            border-radius: 50%;
+            animation: rotate 5s linear infinite;
+        }
+        .hud-reticle::after {
+            content: '+';
+            color: rgba(0, 212, 255, 0.8);
+            font-size: 24px;
+        }
+
+        .hud-data-panel {
+            position: absolute;
+            top: 20%;
+            width: 250px;
+            background: rgba(0, 10, 20, 0.7);
+            border: 1px solid rgba(0, 212, 255, 0.5);
+            padding: 15px;
+            color: var(--primary-blue);
+            font-family: monospace;
+            font-size: 14px;
+            text-shadow: 0 0 5px rgba(0, 212, 255, 0.5);
+        }
+        .hud-data-panel.left { left: 20px; border-left: 4px solid var(--primary-blue); }
+        .hud-data-panel.right { right: 20px; border-right: 4px solid var(--primary-blue); }
+        .hud-data-row { display: flex; justify-content: space-between; margin-bottom: 8px; border-bottom: 1px solid rgba(0,212,255,0.2); padding-bottom: 4px;}
+        .hud-hex { font-size: 10px; opacity: 0.5; overflow: hidden; height: 100px; word-break: break-all; }
+
         .console-log {
             margin-top: 15px;
             text-align: center;
@@ -532,6 +599,37 @@
         </button>
         <div id="lock-status">Awaiting Authorization...</div>
     </div>
+        <!-- IRON MAN HUD OVERLAY -->
+    <div id="iron-man-hud">
+        <div class="hud-corner tl"></div>
+        <div class="hud-corner tr"></div>
+        <div class="hud-corner bl"></div>
+        <div class="hud-corner br"></div>
+        <div class="hud-reticle" id="hud-reticle"></div>
+
+        <div class="hud-data-panel left">
+            <div style="font-weight:bold; margin-bottom: 10px; color: #fff;">SYSTEM TELEMETRY</div>
+            <div class="hud-data-row"><span>CPU</span><span id="hud-cpu-load">--%</span></div>
+            <div class="hud-data-row"><span>RAM</span><span id="hud-ram">-- / --</span></div>
+            <div class="hud-data-row"><span>UPTIME</span><span id="hud-uptime">--</span></div>
+            <div class="hud-data-row"><span>OS</span><span id="hud-os">--</span></div>
+            <div class="hud-data-row"><span>CORE</span><span id="hud-cpu-info">--</span></div>
+            <div style="margin-top: 15px; font-weight:bold; font-size:10px;">RAW NEURAL FEED:</div>
+            <div class="hud-hex" id="hud-hex-left"></div>
+        </div>
+
+        <div class="hud-data-panel right">
+            <div style="font-weight:bold; margin-bottom: 10px; color: #fff;">BIOMETRIC TARGETING</div>
+            <div class="hud-data-row"><span>STATE</span><span style="color:#0f0;">LOCKED</span></div>
+            <div class="hud-data-row"><span>SECURITY</span><span>MAXIMUM</span></div>
+            <div class="hud-data-row"><span>LATENCY</span><span id="hud-latency">-- ms</span></div>
+            <div class="hud-data-row"><span>VISION</span><span style="color:#0f0;">ACTIVE</span></div>
+            <div class="hud-data-row"><span>AUDIO</span><span style="color:#0f0;">ACTIVE</span></div>
+            <div style="margin-top: 15px; font-weight:bold; font-size:10px;">ENCRYPTION STREAM:</div>
+            <div class="hud-hex" id="hud-hex-right"></div>
+        </div>
+    </div>
+
     <div class="hud-overlay"></div>
     
     <!-- DREAM STATE OVERLAY -->
@@ -1103,6 +1201,36 @@
             resetActivity();
             lastCommandTimestamp = Date.now();
             const query = cmd.toLowerCase().replace(/[.,\/#!$%\^&\*;:{}=\-_`~()]/g,"").trim(); // Clean input
+            
+            // --- IRON MAN HUD MODE ---
+            if (query.includes("activate hud") || query.includes("activate iron man mode") || query.includes("enable hud")) {
+                document.getElementById('iron-man-hud').style.display = 'block';
+                startHudTelemetry();
+                speak("HUD Mode activated. Full system telemetry is now online, Sir.");
+                saveHistory(cmd, "HUD Mode Enabled.");
+                
+                // Play a mechanical sound
+                const ctx = new (window.AudioContext || window.webkitAudioContext)();
+                const osc = ctx.createOscillator();
+                osc.type = 'sawtooth';
+                osc.frequency.setValueAtTime(50, ctx.currentTime);
+                osc.frequency.exponentialRampToValueAtTime(800, ctx.currentTime + 1);
+                const gain = ctx.createGain();
+                gain.gain.setValueAtTime(0, ctx.currentTime);
+                gain.gain.linearRampToValueAtTime(0.2, ctx.currentTime + 0.1);
+                gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 1);
+                osc.connect(gain); gain.connect(ctx.destination);
+                osc.start(); osc.stop(ctx.currentTime + 1);
+                
+                return;
+            }
+            if (query.includes("disable hud") || query.includes("deactivate hud") || query.includes("close hud")) {
+                document.getElementById('iron-man-hud').style.display = 'none';
+                stopHudTelemetry();
+                speak("HUD Mode deactivated.");
+                saveHistory(cmd, "HUD Mode Disabled.");
+                return;
+            }
             
             // --- WORKSPACE ROUTINE CREATION STATE ---
             if (routineBeingCreated) {
@@ -2368,6 +2496,59 @@
                 logEl.innerText = "PREFERENCES IMPORTED";
             }, 1000);
         };
+
+        // --- HUD LOGIC ---
+        let hudInterval = null;
+        const hudReticle = document.getElementById('hud-reticle');
+        
+        document.addEventListener('mousemove', (e) => {
+            if (document.getElementById('iron-man-hud').style.display === 'block') {
+                hudReticle.style.left = e.clientX + 'px';
+                hudReticle.style.top = e.clientY + 'px';
+            }
+        });
+
+        function generateHex() {
+            let result = '';
+            const chars = '0123456789ABCDEF';
+            for (let i = 0; i < 200; i++) {
+                result += chars[Math.floor(Math.random() * chars.length)];
+                if (i % 8 === 0) result += ' ';
+            }
+            return result;
+        }
+
+        async function startHudTelemetry() {
+            if (hudInterval) clearInterval(hudInterval);
+            
+            hudInterval = setInterval(async () => {
+                try {
+                    const res = await fetch('/api/system');
+                    const data = await res.json();
+                    
+                    document.getElementById('hud-cpu-load').innerText = data.cpuLoad + '%';
+                    document.getElementById('hud-ram').innerText = data.freeMem + 'GB / ' + data.totalMem + 'GB';
+                    document.getElementById('hud-uptime').innerText = data.uptime + 's';
+                    document.getElementById('hud-os').innerText = data.platform.toUpperCase();
+                    document.getElementById('hud-cpu-info').innerText = data.cpuInfo.substring(0, 15) + '...';
+                    
+                    document.getElementById('hud-latency').innerText = Math.floor(Math.random() * 20 + 10) + ' ms';
+                    
+                    document.getElementById('hud-hex-left').innerText = generateHex();
+                    document.getElementById('hud-hex-right').innerText = generateHex();
+                    
+                } catch(e) {
+                    console.error("HUD telemetry error:", e);
+                }
+            }, 1000);
+        }
+
+        function stopHudTelemetry() {
+            if (hudInterval) {
+                clearInterval(hudInterval);
+                hudInterval = null;
+            }
+        }
 
     </script>
 </body>
