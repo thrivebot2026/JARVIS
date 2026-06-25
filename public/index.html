@@ -868,8 +868,8 @@
         </div>
 
         <!-- Hidden Video for Face Tracking -->
-        <video id="face-tracking-feed" autoplay playsinline muted style="display:none; width: 320px; height: 240px;"></video>
-        <canvas id="face-tracking-canvas" style="display:none;"></canvas>
+        <video id="face-tracking-feed" autoplay playsinline muted style="position:absolute; width:320px; height:240px; opacity:0; pointer-events:none; z-index:-1000;"></video>
+        <canvas id="face-tracking-canvas" style="position:absolute; width:320px; height:240px; opacity:0; pointer-events:none; z-index:-1000;"></canvas>
 
         <!-- Camera Drawer -->
         <div id="hud-camera-drawer">
@@ -3382,41 +3382,52 @@
             
             // Initialize Face Tracking for Gestures
             if (!trackerTask) {
-                const tracker = new tracking.ObjectTracker('face');
-                tracker.setInitialScale(4);
-                tracker.setStepSize(2);
-                tracker.setEdgesDensity(0.1);
-
-                trackerTask = tracking.track('#face-tracking-feed', tracker, { camera: true });
-
-                tracker.on('track', function(event) {
-                    if (event.data.length === 0 || gestureCooldown) return;
+                try {
+                    const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+                    const videoEl = document.getElementById('face-tracking-feed');
+                    videoEl.srcObject = stream;
                     
-                    let face = event.data[0];
-                    if (lastFaceX !== -1) {
-                        let diff = face.x - lastFaceX;
-                        // If face moved more than 30px between frames
-                        if (Math.abs(diff) > 30) {
-                            gestureCooldown = true;
-                            setTimeout(() => { gestureCooldown = false; }, 2000); // 2s cooldown
-                            
-                            if (diff > 0) {
-                                // Moved Right -> Repulsors
-                                playSynthSound('blast');
-                                document.getElementById('hud-repulsor-val').innerText = 'FIRING';
-                                setTimeout(() => { document.getElementById('hud-repulsor-val').innerText = '100%'; }, 1000);
-                            } else {
-                                // Moved Left -> Flares
-                                playSynthSound('zap');
-                                if (flares > 0) {
-                                    flares--;
-                                    document.getElementById('hud-flare-count').innerText = flares + ' / 20';
+                    const tracker = new tracking.ObjectTracker('face');
+                    tracker.setInitialScale(4);
+                    tracker.setStepSize(2);
+                    tracker.setEdgesDensity(0.1);
+
+                    // Wait for video to be ready before tracking
+                    videoEl.onloadedmetadata = () => {
+                        trackerTask = tracking.track('#face-tracking-feed', tracker);
+                    };
+
+                    tracker.on('track', function(event) {
+                        if (event.data.length === 0 || gestureCooldown) return;
+                        
+                        let face = event.data[0];
+                        if (lastFaceX !== -1) {
+                            let diff = face.x - lastFaceX;
+                            // If face moved more than 15px between frames
+                            if (Math.abs(diff) > 15) {
+                                gestureCooldown = true;
+                                setTimeout(() => { gestureCooldown = false; }, 2000); // 2s cooldown
+                                
+                                if (diff > 0) {
+                                    // Moved Right -> Repulsors
+                                    playSynthSound('blast');
+                                    document.getElementById('hud-repulsor-val').innerText = 'FIRING';
+                                    setTimeout(() => { document.getElementById('hud-repulsor-val').innerText = '100%'; }, 1000);
+                                } else {
+                                    // Moved Left -> Flares
+                                    playSynthSound('zap');
+                                    if (flares > 0) {
+                                        flares--;
+                                        document.getElementById('hud-flare-count').innerText = flares + ' / 20';
+                                    }
                                 }
                             }
                         }
-                    }
-                    lastFaceX = face.x;
-                });
+                        lastFaceX = face.x;
+                    });
+                } catch (err) {
+                    console.error("Camera access denied or unavailable for head tracking:", err);
+                }
             }
 
             hudInterval = setInterval(async () => {
