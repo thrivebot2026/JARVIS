@@ -1700,7 +1700,8 @@
                     history: conversationHistory,
                     training: isTrainingMode,
                     image: image,
-                    relationshipScore: relationshipScore
+                    relationshipScore: relationshipScore,
+                    memories: JSON.parse(localStorage.getItem('jarvis_memories') || '[]')
                 };
                 
                 if (Array.isArray(referenceData)) {
@@ -1751,6 +1752,17 @@
                     reply = reply.replace(/\[APOLOGY_ACCEPTED\]/i, '').trim();
                     logEl.innerText = "RELATIONSHIP REPAIRED";
                     saveHistory("System", "Relationship Repaired. Apology Accepted.");
+                }
+
+                // Parse Memory
+                let memoryMatch = reply.match(/\[REMEMBER:\s*"(.*?)"\]/i) || reply.match(/\[REMEMBER:\s*(.*?)\]/i);
+                if (memoryMatch) {
+                    let fact = memoryMatch[1];
+                    let savedMemories = JSON.parse(localStorage.getItem('jarvis_memories') || '[]');
+                    savedMemories.push(fact);
+                    localStorage.setItem('jarvis_memories', JSON.stringify(savedMemories));
+                    reply = reply.replace(/\[REMEMBER:\s*".*?"\]/i, '').replace(/\[REMEMBER:\s*.*?\]/i, '').trim();
+                    saveHistory("System", `Memory Saved: "${fact}"`);
                 }
 
                 // Parse XP
