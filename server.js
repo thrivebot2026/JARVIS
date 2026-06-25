@@ -160,7 +160,7 @@ Only provide ONE interactive block per response when appropriate. Encourage the 
             
             geminiContents.push({ role: 'user', parts: userParts });
 
-            const modelName = "gemini-3.5-flash";
+            const modelName = "gemini-1.5-flash";
             const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${API_KEY}`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -173,7 +173,7 @@ Only provide ONE interactive block per response when appropriate. Encourage the 
             const data = await response.json();
 
             if (!data.error && data.candidates?.[0]?.content?.parts?.[0]?.text) {
-                console.log("SUCCESS: Gemini 3.5 Flash Responded.");
+                console.log("SUCCESS: Gemini 1.5 Flash Responded.");
                 return res.json(data);
             }
 
