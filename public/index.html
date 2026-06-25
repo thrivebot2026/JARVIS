@@ -660,7 +660,7 @@
         <div class="jarvis-circle" id="core-circle">
             <div class="ring outer-ring"></div>
             <div class="ring inner-ring"></div>
-            <div class="jarvis-text">JARVIS</div>
+            <div class="jarvis-text" onclick="toggleHudMode()" style="cursor: pointer;" title="Toggle HUD Mode">JARVIS</div>
         </div>
 
         <div class="controls">
@@ -2507,6 +2507,34 @@
                 hudReticle.style.top = e.clientY + 'px';
             }
         });
+
+        function toggleHudMode() {
+            const hud = document.getElementById('iron-man-hud');
+            if (hud.style.display === 'block') {
+                hud.style.display = 'none';
+                stopHudTelemetry();
+                speak("HUD Mode deactivated.");
+                saveHistory("System", "HUD Mode Disabled.");
+            } else {
+                hud.style.display = 'block';
+                startHudTelemetry();
+                speak("HUD Mode activated. Full system telemetry is now online, Sir.");
+                saveHistory("System", "HUD Mode Enabled.");
+                
+                // Play a mechanical sound
+                const ctx = new (window.AudioContext || window.webkitAudioContext)();
+                const osc = ctx.createOscillator();
+                osc.type = 'sawtooth';
+                osc.frequency.setValueAtTime(50, ctx.currentTime);
+                osc.frequency.exponentialRampToValueAtTime(800, ctx.currentTime + 1);
+                const gain = ctx.createGain();
+                gain.gain.setValueAtTime(0, ctx.currentTime);
+                gain.gain.linearRampToValueAtTime(0.2, ctx.currentTime + 0.1);
+                gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 1);
+                osc.connect(gain); gain.connect(ctx.destination);
+                osc.start(); osc.stop(ctx.currentTime + 1);
+            }
+        }
 
         function generateHex() {
             let result = '';
