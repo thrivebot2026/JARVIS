@@ -1015,7 +1015,7 @@
                 
                 // Automatically disable sleep mode if it is active
                 if (!isListening) {
-                    toggleListening();
+                    window.toggleListening();
                 }
             } else {
                 btn.innerHTML = '<i class="fas fa-shield-alt"></i> JARVIS MODE: OFF';
@@ -1024,6 +1024,21 @@
                 btn.style.boxShadow = 'none';
                 speak("JARVIS Mode disengaged.");
             }
+        };
+
+        window.toggleListening = function() {
+            if (systemLocked) return;
+            if (isListening) {
+                stopListening();
+            } else {
+                startListening();
+            }
+        };
+
+        window.clearHistory = function() {
+            localStorage.removeItem('jarvis_history');
+            document.getElementById('history-content').innerHTML = '';
+            speak("Memory cleared, Sir.");
         };
 
         // --- SPEECH RECOGNITION ---
