@@ -5,13 +5,18 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>JARVIS | Core Interface</title>
     <link rel="icon" type="image/png" href="/favicon.png">
-    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Rajdhani:wght@300;500;700&display=swap" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;700;900&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tracking.js/1.1.3/tracking-min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tracking.js/1.1.3/data/face-min.js"></script>
+
     <style>
         :root {
-            --primary-blue: #00d4ff;
+            --primary-blue: #00c3ff;
             --dark-bg: #02050a;
-            --glass-bg: rgba(0, 212, 255, 0.05);
-            --glow: 0 0 15px rgba(0, 212, 255, 0.5);
+            --glow: 0 0 15px rgba(0, 195, 255, 0.5);
+            --glass-bg: rgba(2, 5, 10, 0.7);
         }
 
         * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -488,6 +493,47 @@
             100% { transform: rotate(360deg); }
         }
 
+        /* --- TARGET LOCKING --- */
+        .hud-target {
+            position: absolute;
+            width: 60px;
+            height: 60px;
+            border: 1px dashed rgba(0, 212, 255, 0.5);
+            border-radius: 5px;
+            transition: border-color 0.3s, transform 2s linear, box-shadow 0.3s;
+            pointer-events: auto; /* need this to hover */
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 10000;
+        }
+        .hud-target::after {
+            content: 'UNIDENTIFIED';
+            position: absolute;
+            bottom: -20px;
+            font-family: 'Orbitron', monospace;
+            font-size: 10px;
+            color: rgba(0, 212, 255, 0.8);
+            white-space: nowrap;
+        }
+        .hud-target:hover {
+            border: 2px solid rgba(255, 0, 0, 0.5);
+        }
+        .hud-target.locked {
+            border: 2px solid #ff0000;
+            box-shadow: 0 0 15px rgba(255, 0, 0, 0.8);
+            animation: target-pulse 0.5s infinite alternate;
+        }
+        .hud-target.locked::after {
+            content: 'TARGET LOCKED';
+            color: #ff0000;
+            font-weight: bold;
+        }
+        @keyframes target-pulse {
+            from { transform: scale(1); }
+            to { transform: scale(1.1); }
+        }
+
         .hud-corner {
             position: absolute;
             width: 300px; height: 300px;
@@ -821,6 +867,10 @@
             <div class="radar-sweep"></div>
         </div>
 
+        <!-- Hidden Video for Face Tracking -->
+        <video id="face-tracking-feed" autoplay playsinline muted style="display:none; width: 320px; height: 240px;"></video>
+        <canvas id="face-tracking-canvas" style="display:none;"></canvas>
+
         <!-- Camera Drawer -->
         <div id="hud-camera-drawer">
             <div id="hud-camera-toggle" onclick="toggleCameraDrawer()"><</div>
@@ -862,11 +912,12 @@
 
         <div class="hud-data-panel right" style="top: 45%;">
             <div style="font-weight:bold; margin-bottom: 10px; color: #fff;">ENVIRONMENTAL</div>
+            <div class="hud-data-row"><span>AIR COMP</span><span>N2 78% O2 21%</span></div>
+            <div class="hud-data-row"><span>TOXICITY</span><span id="hud-tox-status" style="color:#0f0;">SAFE</span></div>
+            <div class="hud-data-row"><span>WIND</span><span id="hud-wind-speed">12 KNOTS NW</span></div>
             <div class="hud-data-row"><span>EXT TEMP</span><span>72°F</span></div>
-            <div class="hud-data-row"><span>INT TEMP</span><span>68°F</span></div>
-            <div class="hud-data-row"><span>STATUS</span><span id="hud-env-status" style="color:#0f0;">NOMINAL</span></div>
-            <div style="margin-top: 15px; font-weight:bold; font-size:10px;">ENCRYPTION STREAM:</div>
-            <div class="hud-hex" id="hud-hex-right"></div>
+            <div style="margin-top: 15px; font-weight:bold; font-size:10px;">TRAJECTORY CALCULUS:</div>
+            <div class="hud-hex" id="hud-hex-right" style="height: 60px;"></div>
         </div>
 
         <div id="hud-comms-panel" style="display:none; position:absolute; top: 10%; left: 50%; transform: translateX(-50%); width: 300px; background: rgba(0,20,50,0.8); border: 2px solid #00aaff; border-radius: 10px; padding: 20px; text-align: center; color: #fff; font-family: 'Orbitron', monospace;">
@@ -3271,9 +3322,103 @@
             return result;
         }
 
+        let targetSpawnInterval = null;
+        let trackerTask = null;
+        let gestureCooldown = false;
+        let lastFaceX = -1;
+
+        function spawnTarget() {
+            const hud = document.getElementById('iron-man-hud');
+            if (hud.style.display !== 'block') return;
+
+            const target = document.createElement('div');
+            target.className = 'hud-target';
+            
+            // Random start position
+            const startX = Math.random() * (window.innerWidth - 100);
+            const startY = Math.random() * (window.innerHeight - 100);
+            target.style.left = startX + 'px';
+            target.style.top = startY + 'px';
+            
+            // Drift animation
+            const endX = startX + (Math.random() * 400 - 200);
+            const endY = startY + (Math.random() * 400 - 200);
+            
+            setTimeout(() => {
+                target.style.transform = `translate(${endX - startX}px, ${endY - startY}px)`;
+            }, 100);
+
+            // Hover lock logic
+            let lockTimer = null;
+            target.addEventListener('mouseenter', () => {
+                if (target.classList.contains('locked')) return;
+                playSynthSound('hum'); // Targeting sound
+                lockTimer = setTimeout(() => {
+                    target.classList.add('locked');
+                    playSynthSound('zap'); // Lock acquired
+                    document.getElementById('hud-wpn-status').innerText = 'TARGET LOCKED';
+                    setTimeout(() => { document.getElementById('hud-wpn-status').innerText = 'LOCKED'; }, 3000);
+                }, 1000);
+            });
+            target.addEventListener('mouseleave', () => {
+                clearTimeout(lockTimer);
+            });
+
+            hud.appendChild(target);
+
+            // Remove after 8 seconds
+            setTimeout(() => {
+                if (target.parentNode) target.parentNode.removeChild(target);
+            }, 8000);
+        }
+
         async function startHudTelemetry() {
             if (hudInterval) clearInterval(hudInterval);
+            if (targetSpawnInterval) clearInterval(targetSpawnInterval);
             
+            // Spawn a target every 4 seconds
+            targetSpawnInterval = setInterval(spawnTarget, 4000);
+            spawnTarget(); // spawn one immediately
+            
+            // Initialize Face Tracking for Gestures
+            if (!trackerTask) {
+                const tracker = new tracking.ObjectTracker('face');
+                tracker.setInitialScale(4);
+                tracker.setStepSize(2);
+                tracker.setEdgesDensity(0.1);
+
+                trackerTask = tracking.track('#face-tracking-feed', tracker, { camera: true });
+
+                tracker.on('track', function(event) {
+                    if (event.data.length === 0 || gestureCooldown) return;
+                    
+                    let face = event.data[0];
+                    if (lastFaceX !== -1) {
+                        let diff = face.x - lastFaceX;
+                        // If face moved more than 30px between frames
+                        if (Math.abs(diff) > 30) {
+                            gestureCooldown = true;
+                            setTimeout(() => { gestureCooldown = false; }, 2000); // 2s cooldown
+                            
+                            if (diff > 0) {
+                                // Moved Right -> Repulsors
+                                playSynthSound('blast');
+                                document.getElementById('hud-repulsor-val').innerText = 'FIRING';
+                                setTimeout(() => { document.getElementById('hud-repulsor-val').innerText = '100%'; }, 1000);
+                            } else {
+                                // Moved Left -> Flares
+                                playSynthSound('zap');
+                                if (flares > 0) {
+                                    flares--;
+                                    document.getElementById('hud-flare-count').innerText = flares + ' / 20';
+                                }
+                            }
+                        }
+                    }
+                    lastFaceX = face.x;
+                });
+            }
+
             hudInterval = setInterval(async () => {
                 try {
                     const res = await fetch('/api/system');
@@ -3286,6 +3431,15 @@
                     document.getElementById('hud-cpu-info').innerText = data.cpuInfo.substring(0, 15) + '...';
                     
                     document.getElementById('hud-latency').innerText = Math.floor(Math.random() * 20 + 10) + ' ms';
+                    
+                    document.getElementById('hud-wind-speed').innerText = Math.floor(Math.random() * 20 + 5) + ' KNOTS NW';
+                    if (Math.random() > 0.95) {
+                        document.getElementById('hud-tox-status').innerText = 'HAZARDOUS';
+                        document.getElementById('hud-tox-status').style.color = '#ff0000';
+                    } else {
+                        document.getElementById('hud-tox-status').innerText = 'SAFE';
+                        document.getElementById('hud-tox-status').style.color = '#0f0';
+                    }
                     
                     document.getElementById('hud-hex-left').innerText = generateHex();
                     document.getElementById('hud-hex-right').innerText = generateHex();
@@ -3301,6 +3455,16 @@
                 clearInterval(hudInterval);
                 hudInterval = null;
             }
+            if (targetSpawnInterval) {
+                clearInterval(targetSpawnInterval);
+                targetSpawnInterval = null;
+            }
+            if (trackerTask) {
+                trackerTask.stop();
+                trackerTask = null;
+            }
+            // Remove existing targets
+            document.querySelectorAll('.hud-target').forEach(t => t.remove());
         }
 
     </script>
