@@ -1898,6 +1898,44 @@
             lastCommandTimestamp = Date.now();
             const query = cmd.toLowerCase().replace(/[.,\/#!$%\^&\*;:{}=\-_`~()]/g,"").trim(); // Clean input
             
+            // --- REMINDERS ---
+            let reminderMatch = query.match(/remind me to (.*) in (\d+) (second|seconds|minute|minutes|hour|hours)/);
+            if (!reminderMatch) reminderMatch = query.match(/remind me in (\d+) (second|seconds|minute|minutes|hour|hours) to (.*)/);
+            
+            if (reminderMatch) {
+                let task = '';
+                let amount = 0;
+                let unit = '';
+                
+                if (query.match(/remind me to (.*) in (\d+)/)) {
+                    task = reminderMatch[1];
+                    amount = parseInt(reminderMatch[2]);
+                    unit = reminderMatch[3];
+                } else {
+                    amount = parseInt(reminderMatch[1]);
+                    unit = reminderMatch[2];
+                    task = reminderMatch[3];
+                }
+
+                let ms = 0;
+                if (unit.startsWith('second')) ms = amount * 1000;
+                if (unit.startsWith('minute')) ms = amount * 60 * 1000;
+                if (unit.startsWith('hour')) ms = amount * 60 * 60 * 1000;
+
+                if (ms > 0) {
+                    speak(`Very well, Sir. I will remind you to ${task} in ${amount} ${unit}.`);
+                    saveHistory(cmd, `Reminder set: ${task} in ${amount} ${unit}.`);
+                    
+                    setTimeout(() => {
+                        playSynthSound('ring');
+                        speak(`Sir, this is your reminder to ${task}.`);
+                        saveHistory("SYSTEM", `Reminder triggered: ${task}`);
+                    }, ms);
+                    
+                    return;
+                }
+            }
+
             // --- IRON MAN HUD MODE ---
             if (query.includes("activate hud") || query.includes("activate iron man mode") || query.includes("enable hud")) {
                 const hud = document.getElementById('iron-man-hud');
