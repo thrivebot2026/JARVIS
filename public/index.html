@@ -725,20 +725,108 @@
             letter-spacing: 1px;
         }
 
+        /* --- MAIN UI FEATURE LIST DRAWER --- */
+        #main-feature-drawer {
+            position: fixed;
+            top: 0;
+            right: -350px;
+            width: 350px;
+            height: 100%;
+            background: rgba(0, 15, 30, 0.95);
+            border-left: 2px solid var(--primary-blue);
+            box-shadow: -5px 0 15px rgba(0, 212, 255, 0.3);
+            z-index: 9998; /* just below lock screen */
+            transition: right 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            overflow-y: auto;
+            color: var(--primary-blue);
+            font-family: 'Rajdhani', sans-serif;
+        }
+        #main-feature-drawer.open {
+            right: 0;
+        }
+        .main-feature-toggle {
+            position: fixed;
+            top: 50%;
+            right: 0;
+            transform: translateY(-50%);
+            background: rgba(0, 15, 30, 0.9);
+            border: 2px solid var(--primary-blue);
+            border-right: none;
+            color: var(--primary-blue);
+            padding: 20px 10px;
+            cursor: pointer;
+            z-index: 9999;
+            border-radius: 10px 0 0 10px;
+            font-size: 20px;
+            transition: right 0.4s, background 0.3s;
+        }
+        .main-feature-toggle:hover {
+            background: rgba(0, 212, 255, 0.2);
+        }
+        .main-feature-toggle.open {
+            right: 350px;
+        }
+        .drawer-title {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 24px;
+            text-align: center;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid rgba(0, 212, 255, 0.3);
+            text-shadow: var(--glow);
+        }
+        .feature-item {
+            margin-bottom: 15px;
+            padding: 10px;
+            background: rgba(0, 212, 255, 0.05);
+            border: 1px solid rgba(0, 212, 255, 0.2);
+            border-radius: 5px;
+            transition: all 0.3s;
+        }
+        .feature-item:hover {
+            background: rgba(0, 212, 255, 0.15);
+            border-color: var(--primary-blue);
+            transform: translateX(-5px);
+        }
+        .feature-item h3 {
+            margin: 0 0 5px 0;
+            font-size: 16px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            color: #fff;
+        }
+        .feature-item p {
+            margin: 0;
+            font-size: 14px;
+            opacity: 0.8;
+        }
+
         /* --- JARVIS BROWSER PANEL --- */
         #jarvis-browser-panel {
             display: none;
             position: absolute;
-            top: 50%; left: 50%;
-            transform: translate(-50%, -50%);
+            top: 10%; left: 10%;
             width: 80%; height: 80%;
-            background: rgba(0, 15, 30, 0.9);
+            background: rgba(0, 15, 30, 0.95);
             border: 2px solid var(--primary-blue);
             border-radius: 10px;
             box-shadow: var(--glow);
             z-index: 10000;
             flex-direction: column;
             pointer-events: auto;
+            resize: both;
+            overflow: hidden;
+            min-width: 400px;
+            min-height: 300px;
+        }
+        #jarvis-browser-panel.fullscreen {
+            top: 0 !important; left: 0 !important;
+            width: 100% !important; height: 100% !important;
+            resize: none;
         }
         .browser-header {
             display: flex;
@@ -746,7 +834,9 @@
             background: rgba(0, 212, 255, 0.1);
             border-bottom: 1px solid var(--primary-blue);
             padding: 5px 10px;
+            cursor: grab; /* Drag handle */
         }
+        .browser-header:active { cursor: grabbing; }
         .browser-tabs {
             display: flex;
             flex-grow: 1;
@@ -811,12 +901,26 @@
         .browser-frame-container {
             flex-grow: 1;
             position: relative;
+            display: flex;
+            flex-direction: row; /* For split view */
+            width: 100%; height: 100%;
+        }
+        .browser-iframe-wrapper {
+            flex: 1;
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            border-right: 1px solid var(--primary-blue);
+        }
+        .browser-iframe-wrapper:last-child {
+            border-right: none;
         }
         .browser-iframe {
             width: 100%;
             height: 100%;
             border: none;
             background: #fff;
+            flex-grow: 1;
         }
         .browser-error-overlay {
             display: none;
@@ -941,6 +1045,8 @@
                 <!-- Tabs injected dynamically -->
             </div>
             <button class="browser-btn" onclick="addNewBrowserTab()" style="margin-right:15px; padding: 2px 10px;">+ TAB</button>
+            <button class="browser-btn" onclick="toggleBrowserSplit()" style="padding: 2px 10px; margin-right: 5px;" title="Split Tab"><i class="fas fa-columns"></i></button>
+            <button class="browser-btn" onclick="toggleBrowserFullscreen()" style="padding: 2px 10px; margin-right: 5px;" title="Toggle Fullscreen"><i class="fas fa-expand"></i></button>
             <button class="browser-btn" onclick="toggleBrowser(false)" style="background: rgba(255,0,0,0.2); border-color: red;">X</button>
         </div>
         <div class="browser-controls">
@@ -949,14 +1055,76 @@
             <button class="browser-btn" onclick="openActiveTabExternal()" title="Open in External Browser"><i class="fas fa-external-link-alt"></i></button>
         </div>
         <div class="browser-frame-container" id="browser-frame-container">
-            <iframe id="browser-iframe" class="browser-iframe" sandbox="allow-scripts allow-same-origin allow-forms allow-popups"></iframe>
-            <div class="browser-error-overlay" id="browser-error-overlay">
-                <h2>CONNECTION REFUSED</h2>
-                <p style="margin-top: 10px; margin-bottom: 20px;">This website's security policy blocks internal framing.</p>
-                <button class="browser-btn" onclick="openActiveTabExternal()" style="border-color: #ff0000; color: #ff0000;">OPEN IN EXTERNAL TAB</button>
+            <!-- First Frame -->
+            <div class="browser-iframe-wrapper" id="browser-wrapper-1">
+                <iframe id="browser-iframe" class="browser-iframe" sandbox="allow-scripts allow-same-origin allow-forms allow-popups"></iframe>
+                <div class="browser-error-overlay" id="browser-error-overlay">
+                    <h2>CONNECTION REFUSED</h2>
+                    <p style="margin-top: 10px; margin-bottom: 20px;">This website's security policy blocks internal framing.</p>
+                    <button class="browser-btn" onclick="openActiveTabExternal()" style="border-color: #ff0000; color: #ff0000;">OPEN IN EXTERNAL TAB</button>
+                </div>
+            </div>
+            <!-- Second Frame (Hidden by default) -->
+            <div class="browser-iframe-wrapper" id="browser-wrapper-2" style="display:none;">
+                <iframe id="browser-iframe-2" class="browser-iframe" sandbox="allow-scripts allow-same-origin allow-forms allow-popups"></iframe>
+                <div class="browser-error-overlay" id="browser-error-overlay-2">
+                    <h2>CONNECTION REFUSED</h2>
+                    <p style="margin-top: 10px; margin-bottom: 20px;">This website's security policy blocks internal framing.</p>
+                    <button class="browser-btn" onclick="openActiveTabExternal(2)" style="border-color: #ff0000; color: #ff0000;">OPEN IN EXTERNAL TAB</button>
+                </div>
             </div>
         </div>
     </div>
+
+    <!-- MAIN UI FEATURE LIST DRAWER -->
+    <div id="main-feature-drawer">
+        <div class="drawer-title"><i class="fas fa-list"></i> SYSTEM CAPABILITIES</div>
+        
+        <div class="feature-item">
+            <h3><i class="fas fa-comment-dots"></i> Voice & Text Chat</h3>
+            <p>Multilingual, sentiment-aware conversational AI with memory retention.</p>
+        </div>
+        <div class="feature-item">
+            <h3><i class="fas fa-globe"></i> Internal Browser</h3>
+            <p>Tabbed web browsing inside JARVIS with external fallback support.</p>
+        </div>
+        <div class="feature-item">
+            <h3><i class="fas fa-eye"></i> Visual Screen Reading</h3>
+            <p>Can read screenshots or files dropped into the UI for analysis.</p>
+        </div>
+        <div class="feature-item">
+            <h3><i class="fas fa-fingerprint"></i> Biometric Security</h3>
+            <p>Facial recognition anchor matching to unlock the system.</p>
+        </div>
+        <div class="feature-item">
+            <h3><i class="fas fa-cloud-sun"></i> Live Weather</h3>
+            <p>Provides current weather data, alerts, and forecasts for your region.</p>
+        </div>
+        <div class="feature-item">
+            <h3><i class="fas fa-newspaper"></i> Global RSS Feeds</h3>
+            <p>Fetches real-time news headlines from major networks like CNBC/BBC.</p>
+        </div>
+        <div class="feature-item">
+            <h3><i class="fas fa-music"></i> Spotify Integration</h3>
+            <p>Play, pause, skip, and display current tracks securely via Spotify API.</p>
+        </div>
+        <div class="feature-item">
+            <h3><i class="fas fa-crosshairs"></i> Iron Man HUD</h3>
+            <p>Full-screen tactical overlay with targeting, telemetry, and artificial horizon.</p>
+        </div>
+        <div class="feature-item">
+            <h3><i class="fas fa-briefcase"></i> Workspace Manager</h3>
+            <p>Execute scripts, run code, and build routines directly in the workshop.</p>
+        </div>
+        <div class="feature-item">
+            <h3><i class="fas fa-moon"></i> Sleep Mode</h3>
+            <p>Deactivates active listening and dims UI until summoned with 'Wake up'.</p>
+        </div>
+    </div>
+    <div class="main-feature-toggle" id="main-feature-toggle" onclick="toggleMainFeatureDrawer()">
+        <i class="fas fa-chevron-left" id="main-feature-icon"></i>
+    </div>
+
     <!-- LOCK SCREEN OVERLAY -->
     <div id="lock-screen">
         <div class="lock-icon"><i class="fas fa-lock"></i></div>
@@ -3667,11 +3835,70 @@
             }
         }
 
-        async function loadIframeUrl(url) {
-            const iframe = document.getElementById('browser-iframe');
-            const errorOverlay = document.getElementById('browser-error-overlay');
+        function openActiveTabExternal(frameNum = 1) {
+            let url = '';
+            if (frameNum === 1) {
+                url = document.getElementById('browser-url-input').value;
+            } else {
+                url = document.getElementById('browser-iframe-2').src;
+            }
+            if (url && url !== 'about:blank') {
+                window.open(url, '_blank');
+            }
+        }
+
+        /* --- DRAG LOGIC --- */
+        const browserPanel = document.getElementById('jarvis-browser-panel');
+        const browserHeader = browserPanel.querySelector('.browser-header');
+        let isDraggingBrowser = false;
+        let dragOffsetX = 0;
+        let dragOffsetY = 0;
+
+        browserHeader.addEventListener('mousedown', (e) => {
+            if (browserPanel.classList.contains('fullscreen')) return;
+            // Prevent dragging if clicking on a button or tab
+            if (e.target.tagName.toLowerCase() === 'button' || e.target.closest('.browser-tab')) return;
+            isDraggingBrowser = true;
+            dragOffsetX = e.clientX - browserPanel.offsetLeft;
+            dragOffsetY = e.clientY - browserPanel.offsetTop;
+        });
+
+        document.addEventListener('mousemove', (e) => {
+            if (isDraggingBrowser) {
+                browserPanel.style.left = (e.clientX - dragOffsetX) + 'px';
+                browserPanel.style.top = (e.clientY - dragOffsetY) + 'px';
+                browserPanel.style.transform = 'none'; // Clear translate used for centering initially
+            }
+        });
+
+        document.addEventListener('mouseup', () => {
+            isDraggingBrowser = false;
+        });
+
+        /* --- FULLSCREEN & SPLIT --- */
+        function toggleBrowserFullscreen() {
+            browserPanel.classList.toggle('fullscreen');
+        }
+
+        let isSplitView = false;
+        function toggleBrowserSplit() {
+            isSplitView = !isSplitView;
+            const frame2 = document.getElementById('browser-wrapper-2');
+            if (isSplitView) {
+                frame2.style.display = 'flex';
+                // Load default or same URL into second frame
+                const currentUrl = document.getElementById('browser-url-input').value || 'https://en.wikipedia.org/wiki/Main_Page';
+                loadIframeUrl(currentUrl, 2);
+            } else {
+                frame2.style.display = 'none';
+            }
+        }
+
+        // Overload loadIframeUrl to handle frame 2
+        async function loadIframeUrl(url, frameNum = 1) {
+            const iframe = document.getElementById(frameNum === 1 ? 'browser-iframe' : 'browser-iframe-2');
+            const errorOverlay = document.getElementById(frameNum === 1 ? 'browser-error-overlay' : 'browser-error-overlay-2');
             
-            // Check frame permissions first
             try {
                 const res = await fetch(`/api/check-frame?url=${encodeURIComponent(url)}`);
                 const data = await res.json();
@@ -3684,15 +3911,25 @@
                     errorOverlay.style.display = 'flex';
                 }
             } catch (err) {
-                // Network error to our own backend
                 iframe.src = url;
             }
         }
 
-        function openActiveTabExternal() {
-            const url = document.getElementById('browser-url-input').value;
-            if (url) {
-                window.open(url, '_blank');
+        /* --- MAIN FEATURE DRAWER --- */
+        function toggleMainFeatureDrawer() {
+            const drawer = document.getElementById('main-feature-drawer');
+            const toggle = document.getElementById('main-feature-toggle');
+            const icon = document.getElementById('main-feature-icon');
+            
+            drawer.classList.toggle('open');
+            toggle.classList.toggle('open');
+            
+            if (drawer.classList.contains('open')) {
+                icon.className = 'fas fa-chevron-right';
+                playSynthSound('zap');
+            } else {
+                icon.className = 'fas fa-chevron-left';
+                playSynthSound('hum');
             }
         }
 
