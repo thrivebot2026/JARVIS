@@ -291,6 +291,58 @@
             overflow: hidden;
             transition: background 0.5s ease;
         }
+
+        @keyframes flightPan {
+            0% { transform: scale(1); background-position: center center; }
+            50% { transform: scale(1.1); background-position: center bottom; }
+            100% { transform: scale(1); background-position: center center; }
+        }
+        .flight-active {
+            animation: flightPan 10s infinite alternate ease-in-out !important;
+        }
+
+        #hud-commands-drawer {
+            position: absolute;
+            top: 100px;
+            left: -300px;
+            width: 300px;
+            height: 400px;
+            background: rgba(0, 15, 30, 0.85);
+            border: 1px solid #00aaff;
+            border-left: none;
+            border-top-right-radius: 10px;
+            border-bottom-right-radius: 10px;
+            transition: left 0.3s ease;
+            z-index: 10002;
+            pointer-events: auto;
+            color: #00aaff;
+            font-family: 'Orbitron', monospace;
+            padding: 15px;
+            box-shadow: 5px 0 20px rgba(0,212,255,0.2);
+            overflow-y: auto;
+        }
+        #hud-commands-drawer.open {
+            left: 0;
+        }
+        #hud-drawer-toggle {
+            position: absolute;
+            right: -30px;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 30px;
+            height: 60px;
+            background: rgba(0, 15, 30, 0.85);
+            border: 1px solid #00aaff;
+            border-left: none;
+            border-top-right-radius: 5px;
+            border-bottom-right-radius: 5px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+        }
+
         .hud-corner {
             position: absolute;
             width: 300px; height: 300px;
@@ -657,6 +709,24 @@
         <button onclick="toggleHudMode()" style="position: absolute; bottom: 30px; left: 50%; transform: translateX(-50%); background: rgba(255, 0, 0, 0.2); border: 1px solid #ff0000; color: #ff0000; font-family: 'Orbitron', monospace; font-size: 16px; padding: 10px 20px; border-radius: 5px; cursor: pointer; pointer-events: auto; z-index: 10001; text-shadow: 0 0 5px #ff0000; box-shadow: inset 0 0 10px rgba(255,0,0,0.3);">
             [ EMERGENCY EXIT HUD ]
         </button>
+
+        <div id="hud-commands-drawer">
+            <div id="hud-drawer-toggle" onclick="document.getElementById('hud-commands-drawer').classList.toggle('open')">></div>
+            <h3 style="margin-top:0; border-bottom: 1px solid #00aaff; padding-bottom: 5px;">HUD COMMANDS</h3>
+            <ul style="list-style: none; padding: 0; font-size: 12px; line-height: 1.6;">
+                <li>🔥 <b>Heater:</b> "activate/disable heater"</li>
+                <li>🚀 <b>Missiles:</b> "fire missiles"</li>
+                <li>💧 <b>Water:</b> "deploy water stream"</li>
+                <li>⚡ <b>Taser:</b> "use taser"</li>
+                <li>✈️ <b>Flight:</b> "activate/disable thrusters" or "fly"</li>
+                <li>🎇 <b>Flares:</b> "deploy flares"</li>
+                <li>📡 <b>Comms:</b> "make a call"</li>
+                <li>💥 <b>EMP:</b> "trigger EMP"</li>
+                <li>🛰️ <b>EDITH:</b> "launch killer drones"</li>
+                <li>🔧 <b>Repair:</b> "go to workshop"</li>
+                <li style="margin-top:10px; color:#aaa;">* Plus all normal JARVIS commands!</li>
+            </ul>
+        </div>
     </div>
 
     <div class="hud-overlay"></div>
@@ -1284,8 +1354,24 @@
             
             // --- HUD HARDWARE COMMANDS (SUIT FUNCTIONS) ---
             if (document.getElementById('iron-man-hud').style.display === 'block') {
+                if (suitPower <= 0 && !query.includes("workshop") && !query.includes("disable") && !query.includes("deactivate") && !query.includes("close")) {
+                    speak("Systems are offline. Please go to the workshop to replace the reactor, Sir.");
+                    return;
+                }
+
+                if (query.includes("disable heater") || query.includes("deactivate heater")) {
+                    isHeaterActive = false;
+                    document.getElementById('iron-man-hud').style.background = 'url("hud-bg.png") no-repeat center center fixed, radial-gradient(circle at center, rgba(0, 212, 255, 0.02) 0%, rgba(0, 15, 30, 0.6) 100%)';
+                    document.getElementById('iron-man-hud').style.backgroundSize = 'cover';
+                    document.getElementById('iron-man-hud').style.backgroundBlendMode = 'overlay';
+                    document.getElementById('hud-env-status').innerText = 'NOMINAL';
+                    document.getElementById('hud-env-status').style.color = '#0f0';
+                    speak("Thermal systems disengaged.");
+                    return;
+                }
                 if (query.includes("heater") || query.includes("thermal")) {
-                    updateSuitPower(5);
+                    updateSuitPower(2);
+                    isHeaterActive = true;
                     document.getElementById('iron-man-hud').style.background = 'radial-gradient(circle at center, rgba(255, 50, 0, 0.1) 0%, rgba(50, 10, 0, 0.8) 100%), url("hud-bg.png") no-repeat center center fixed';
                     document.getElementById('iron-man-hud').style.backgroundSize = 'cover';
                     document.getElementById('iron-man-hud').style.backgroundBlendMode = 'overlay';
@@ -1296,6 +1382,74 @@
                     saveHistory(cmd, "Heater Mode Active.");
                     return;
                 }
+                
+                if (query.includes("disable thruster") || query.includes("deactivate thruster") || query.includes("stop flying")) {
+                    isFlying = false;
+                    document.getElementById('iron-man-hud').classList.remove('flight-active');
+                    document.getElementById('hud-suit-status').innerText = 'NOMINAL';
+                    document.getElementById('hud-suit-status').style.color = '#0f0';
+                    speak("Thrusters disengaged.");
+                    return;
+                }
+                if (query.includes("thruster") || query.includes("fly")) {
+                    updateSuitPower(5);
+                    isFlying = true;
+                    document.getElementById('iron-man-hud').classList.add('flight-active');
+                    playSynthSound('jet');
+                    document.body.style.animation = 'shake 0.5s infinite';
+                    setTimeout(() => { document.body.style.animation = ''; }, 2000);
+                    document.getElementById('hud-suit-status').innerText = 'THRUSTERS ACTIVE';
+                    document.getElementById('hud-suit-status').style.color = '#ff9900';
+                    speak("Main thrusters engaged. Flight mode active, Sir.");
+                    saveHistory(cmd, "Thrusters Active.");
+                    return;
+                }
+
+                if (query.includes("workshop") || query.includes("repair")) {
+                    suitPower = -100; // Force updateSuitPower to add 100 and max out at 100
+                    updateSuitPower(-100); 
+                    missiles = 12;
+                    flares = 20;
+                    isFlying = false;
+                    isHeaterActive = false;
+                    document.getElementById('hud-missile-count').innerText = '12 / 12';
+                    document.getElementById('hud-flare-count').innerText = '20 / 20';
+                    document.getElementById('iron-man-hud').classList.remove('flight-active');
+                    document.getElementById('iron-man-hud').style.background = 'url("hud-bg.png") no-repeat center center fixed, radial-gradient(circle at center, rgba(0, 212, 255, 0.02) 0%, rgba(0, 15, 30, 0.6) 100%)';
+                    document.getElementById('iron-man-hud').style.backgroundSize = 'cover';
+                    document.getElementById('iron-man-hud').style.backgroundBlendMode = 'overlay';
+                    document.getElementById('hud-suit-status').innerText = 'NOMINAL';
+                    document.getElementById('hud-suit-status').style.color = '#0f0';
+                    speak("Reactor replaced. Munitions restocked. All systems 100 percent, Sir.");
+                    return;
+                }
+
+                if (query.includes("edith") || query.includes("killer drone")) {
+                    updateSuitPower(30);
+                    speak("Target locked. Calling in orbital strike from EDITH satellite network.");
+                    
+                    const strike = document.createElement('div');
+                    strike.style.position = 'fixed'; strike.style.top = '0'; strike.style.left = '0'; strike.style.width = '100vw'; strike.style.height = '100vh';
+                    strike.style.background = 'repeating-linear-gradient(0deg, rgba(0,255,255,0.1) 0px, rgba(0,255,255,0.1) 2px, transparent 2px, transparent 4px)';
+                    strike.style.zIndex = '10005'; strike.style.pointerEvents = 'none';
+                    document.body.appendChild(strike);
+                    
+                    setTimeout(() => { playSynthSound('emp'); document.body.style.animation = 'shake 0.2s infinite'; }, 2000);
+                    
+                    setTimeout(() => {
+                        strike.style.background = 'white';
+                        document.body.style.animation = 'shake 0.5s infinite';
+                        playSynthSound('blast');
+                        setTimeout(() => {
+                            strike.style.transition = 'opacity 2s ease';
+                            strike.style.opacity = '0';
+                            document.body.style.animation = '';
+                            setTimeout(() => strike.remove(), 2000);
+                        }, 500);
+                    }, 4000);
+                    return;
+                }
+
                 if (query.includes("missile") || query.includes("ordnance") || query.includes("fire")) {
                     if (missiles <= 0) {
                         speak("Out of ordnance, Sir.");
@@ -2677,19 +2831,45 @@
         let suitPower = 100;
         let missiles = 12;
         let flares = 20;
+        let isFlying = false;
+        let isHeaterActive = false;
 
         function updateSuitPower(amount) {
             suitPower = Math.max(0, suitPower - amount);
             const powerEl = document.getElementById('hud-power-val');
             if (powerEl) {
-                powerEl.innerText = suitPower + '% ARC';
+                powerEl.innerText = suitPower.toFixed(1) + '% ARC';
                 if (suitPower < 20) {
                     powerEl.style.color = '#ff0000';
                 } else if (suitPower < 50) {
                     powerEl.style.color = '#ffcc00';
+                } else {
+                    powerEl.style.color = '#0f0';
                 }
             }
         }
+
+        // Continuous power drain for active systems
+        setInterval(() => {
+            if (document.getElementById('iron-man-hud').style.display === 'block') {
+                if (isFlying) {
+                    updateSuitPower(0.5); // Drains 0.5% every second while flying
+                }
+                if (isHeaterActive) {
+                    updateSuitPower(0.2); // Drains 0.2% every second while heating
+                }
+                if (suitPower <= 0 && (isFlying || isHeaterActive)) {
+                    isFlying = false;
+                    isHeaterActive = false;
+                    document.getElementById('iron-man-hud').classList.remove('flight-active');
+                    document.getElementById('iron-man-hud').style.background = 'radial-gradient(circle at center, rgba(255, 0, 0, 0.3) 0%, rgba(0, 0, 0, 0.9) 100%)';
+                    speak("CRITICAL WARNING. ARC REACTOR DEPLETED. SYSTEMS SHUTTING DOWN.");
+                    playSynthSound('emp');
+                    document.getElementById('hud-suit-status').innerText = 'CRITICAL FAILURE';
+                    document.getElementById('hud-suit-status').style.color = '#ff0000';
+                }
+            }
+        }, 1000);
 
         document.addEventListener('mousemove', (e) => {
             if (document.getElementById('iron-man-hud').style.display === 'block') {
