@@ -1603,12 +1603,26 @@
             };
 
             recognition.onerror = (e) => {
-                console.error(e);
-                stopListening();
+                console.error("Speech Recognition Error:", e.error);
+                // Do not stop listening for common timeouts or drops
+                if (e.error === 'no-speech' || e.error === 'network' || e.error === 'aborted') {
+                    return;
+                }
+                // Stop for critical permission or hardware issues
+                if (e.error === 'not-allowed' || e.error === 'audio-capture') {
+                    stopListening();
+                }
             };
 
             recognition.onend = () => {
-                if (isListening) recognition.start();
+                if (isListening) {
+                    // Add a tiny delay to prevent tight crashing loops
+                    setTimeout(() => {
+                        try {
+                            recognition.start();
+                        } catch(e) {}
+                    }, 50);
+                }
             };
         }
 
