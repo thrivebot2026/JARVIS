@@ -283,10 +283,13 @@
             width: 100vw; height: 100vh;
             pointer-events: none;
             z-index: 9999;
-            background: radial-gradient(circle at center, rgba(0, 212, 255, 0.02) 0%, rgba(0, 15, 30, 0.6) 100%);
+            background: url('hud-bg.png') no-repeat center center fixed, radial-gradient(circle at center, rgba(0, 212, 255, 0.02) 0%, rgba(0, 15, 30, 0.6) 100%);
+            background-size: cover;
+            background-blend-mode: overlay;
             border: 2px solid rgba(0, 212, 255, 0.3);
             box-shadow: inset 0 0 100px rgba(0, 212, 255, 0.2);
             overflow: hidden;
+            transition: background 0.5s ease;
         }
         .hud-corner {
             position: absolute;
@@ -618,8 +621,9 @@
 
         <div class="hud-data-panel left" style="top: 45%;">
             <div style="font-weight:bold; margin-bottom: 10px; color: #fff;">SUIT INTEGRITY</div>
-            <div class="hud-data-row"><span>ARMOR</span><span style="color:#0f0;">100%</span></div>
-            <div class="hud-data-row"><span>POWER</span><span style="color:#0f0;">98% ARC</span></div>
+            <div class="hud-data-row"><span>ARMOR</span><span style="color:#0f0;" id="hud-armor-val">100%</span></div>
+            <div class="hud-data-row"><span>POWER</span><span style="color:#0f0;" id="hud-power-val">100% ARC</span></div>
+            <div class="hud-data-row"><span>THRUSTERS</span><span style="color:#0f0;" id="hud-thruster-val">100%</span></div>
             <div class="hud-data-row"><span>STATUS</span><span id="hud-suit-status">NOMINAL</span></div>
             <div style="margin-top: 15px; font-weight:bold; font-size:10px;">RAW NEURAL FEED:</div>
             <div class="hud-hex" id="hud-hex-left"></div>
@@ -628,7 +632,9 @@
         <div class="hud-data-panel right" style="top: 10%;">
             <div style="font-weight:bold; margin-bottom: 10px; color: #fff;">WEAPON SYSTEMS</div>
             <div class="hud-data-row"><span>TARGETING</span><span style="color:#0f0;">ACTIVE</span></div>
-            <div class="hud-data-row"><span>REPULSORS</span><span style="color:#0f0;">CHARGED</span></div>
+            <div class="hud-data-row"><span>REPULSORS</span><span style="color:#0f0;" id="hud-repulsor-val">100%</span></div>
+            <div class="hud-data-row"><span>MISSILES</span><span id="hud-missile-count" style="color:#ffcc00;">12 / 12</span></div>
+            <div class="hud-data-row"><span>FLARES</span><span id="hud-flare-count" style="color:#ffcc00;">20 / 20</span></div>
             <div class="hud-data-row"><span>ORDNANCE</span><span id="hud-wpn-status" style="color:#0f0;">LOCKED</span></div>
             <div class="hud-data-row"><span>LATENCY</span><span id="hud-latency">-- ms</span></div>
         </div>
@@ -1271,7 +1277,10 @@
             // --- HUD HARDWARE COMMANDS (SUIT FUNCTIONS) ---
             if (document.getElementById('iron-man-hud').style.display === 'block') {
                 if (query.includes("heater") || query.includes("thermal")) {
-                    document.getElementById('iron-man-hud').style.background = 'radial-gradient(circle at center, rgba(255, 50, 0, 0.1) 0%, rgba(50, 10, 0, 0.8) 100%)';
+                    updateSuitPower(5);
+                    document.getElementById('iron-man-hud').style.background = 'radial-gradient(circle at center, rgba(255, 50, 0, 0.1) 0%, rgba(50, 10, 0, 0.8) 100%), url("hud-bg.png") no-repeat center center fixed';
+                    document.getElementById('iron-man-hud').style.backgroundSize = 'cover';
+                    document.getElementById('iron-man-hud').style.backgroundBlendMode = 'overlay';
                     playSynthSound('hum');
                     document.getElementById('hud-env-status').innerText = 'THERMAL ACTIVE';
                     document.getElementById('hud-env-status').style.color = '#ff3300';
@@ -1280,6 +1289,14 @@
                     return;
                 }
                 if (query.includes("missile") || query.includes("ordnance") || query.includes("fire")) {
+                    if (missiles <= 0) {
+                        speak("Out of ordnance, Sir.");
+                        return;
+                    }
+                    missiles--;
+                    document.getElementById('hud-missile-count').innerText = `${missiles} / 12`;
+                    updateSuitPower(2);
+                    
                     document.getElementById('hud-reticle').style.borderColor = '#ff0000';
                     document.getElementById('hud-reticle').style.boxShadow = '0 0 30px rgba(255, 0, 0, 0.8)';
                     document.getElementById('hud-wpn-status').innerText = 'ORDNANCE DEPLOYED';
@@ -1300,7 +1317,10 @@
                     return;
                 }
                 if (query.includes("water") || query.includes("cool")) {
-                    document.getElementById('iron-man-hud').style.background = 'radial-gradient(circle at center, rgba(0, 150, 255, 0.1) 0%, rgba(0, 20, 50, 0.8) 100%)';
+                    updateSuitPower(3);
+                    document.getElementById('iron-man-hud').style.background = 'radial-gradient(circle at center, rgba(0, 150, 255, 0.1) 0%, rgba(0, 20, 50, 0.8) 100%), url("hud-bg.png") no-repeat center center fixed';
+                    document.getElementById('iron-man-hud').style.backgroundSize = 'cover';
+                    document.getElementById('iron-man-hud').style.backgroundBlendMode = 'overlay';
                     playSynthSound('fluid');
                     document.getElementById('hud-env-status').innerText = 'COOLANT ACTIVE';
                     document.getElementById('hud-env-status').style.color = '#00aaff';
@@ -1309,6 +1329,7 @@
                     return;
                 }
                 if (query.includes("taser") || query.includes("tazer") || query.includes("shock")) {
+                    updateSuitPower(8);
                     playSynthSound('zap');
                     document.getElementById('hud-wpn-status').innerText = 'TAZER DISCHARGED';
                     document.getElementById('hud-wpn-status').style.color = '#ffff00';
@@ -1317,6 +1338,7 @@
                     return;
                 }
                 if (query.includes("thruster") || query.includes("fly")) {
+                    updateSuitPower(15);
                     playSynthSound('jet');
                     document.body.style.animation = 'shake 0.5s infinite';
                     setTimeout(() => { document.body.style.animation = ''; }, 2000);
@@ -1327,6 +1349,13 @@
                     return;
                 }
                 if (query.includes("flare")) {
+                    if (flares <= 0) {
+                        speak("Flares depleted, Sir.");
+                        return;
+                    }
+                    flares = Math.max(0, flares - 5);
+                    document.getElementById('hud-flare-count').innerText = `${flares} / 20`;
+                    updateSuitPower(1);
                     playSynthSound('blast');
                     for (let i = 0; i < 5; i++) {
                         setTimeout(() => {
@@ -2636,6 +2665,24 @@
         let hudInterval = null;
         const hudReticle = document.getElementById('hud-reticle');
         
+        // Suit State
+        let suitPower = 100;
+        let missiles = 12;
+        let flares = 20;
+
+        function updateSuitPower(amount) {
+            suitPower = Math.max(0, suitPower - amount);
+            const powerEl = document.getElementById('hud-power-val');
+            if (powerEl) {
+                powerEl.innerText = suitPower + '% ARC';
+                if (suitPower < 20) {
+                    powerEl.style.color = '#ff0000';
+                } else if (suitPower < 50) {
+                    powerEl.style.color = '#ffcc00';
+                }
+            }
+        }
+
         document.addEventListener('mousemove', (e) => {
             if (document.getElementById('iron-man-hud').style.display === 'block') {
                 hudReticle.style.left = e.clientX + 'px';
