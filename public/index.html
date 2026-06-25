@@ -1053,7 +1053,12 @@
                 if (langCode === 'mr' || langCode === 'hi') {
                     utter.rate = 0.9;
                     utter.pitch = 0.9;
+                } else if (dreamModeActive) {
+                    utter.pitch = 0.4;
+                    utter.rate = 0.7;
+                    utter.volume = 0.15; // Whisper volume
                 } else {
+                    utter.volume = 1.0;
                     // Apply emotional vocal tone based on sentiment
                     if (sentiment === 'EXCITED') {
                         utter.pitch = 1.2;
