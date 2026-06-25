@@ -38,6 +38,30 @@ app.get('/api/system', async (req, res) => {
         res.status(500).json({ error: "System fetch failed" });
     }
 });
+app.get('/api/check-frame', async (req, res) => {
+    const targetUrl = req.query.url;
+    if (!targetUrl) return res.status(400).json({ error: "No URL provided" });
+
+    try {
+        const response = await fetch(targetUrl, { method: 'HEAD', timeout: 5000 });
+        const xFrame = (response.headers.get('x-frame-options') || '').toLowerCase();
+        const csp = (response.headers.get('content-security-policy') || '').toLowerCase();
+        
+        let canFrame = true;
+        if (xFrame === 'deny' || xFrame === 'sameorigin') {
+            canFrame = false;
+        }
+        if (csp.includes('frame-ancestors')) {
+            // Simplified check: if it specifies frame-ancestors, assume it blocks unless configured for our origin
+            canFrame = false;
+        }
+
+        res.json({ url: targetUrl, canFrame });
+    } catch (err) {
+        // If it fails to fetch (e.g. CORS or network error from server side), assume we can't frame it reliably
+        res.json({ url: targetUrl, canFrame: false, error: err.message });
+    }
+});
 
 app.post('/api/ai', async (req, res) => {
     console.log("--- New AI Request Received ---");

@@ -725,6 +725,112 @@
             letter-spacing: 1px;
         }
 
+        /* --- JARVIS BROWSER PANEL --- */
+        #jarvis-browser-panel {
+            display: none;
+            position: absolute;
+            top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            width: 80%; height: 80%;
+            background: rgba(0, 15, 30, 0.9);
+            border: 2px solid var(--primary-blue);
+            border-radius: 10px;
+            box-shadow: var(--glow);
+            z-index: 10000;
+            flex-direction: column;
+            pointer-events: auto;
+        }
+        .browser-header {
+            display: flex;
+            align-items: center;
+            background: rgba(0, 212, 255, 0.1);
+            border-bottom: 1px solid var(--primary-blue);
+            padding: 5px 10px;
+        }
+        .browser-tabs {
+            display: flex;
+            flex-grow: 1;
+            overflow-x: auto;
+            gap: 5px;
+        }
+        .browser-tab {
+            background: rgba(0, 100, 150, 0.3);
+            color: #fff;
+            padding: 5px 15px;
+            border-radius: 5px 5px 0 0;
+            cursor: pointer;
+            font-size: 14px;
+            border: 1px solid transparent;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            min-width: 120px;
+            max-width: 200px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .browser-tab.active {
+            background: rgba(0, 212, 255, 0.3);
+            border: 1px solid var(--primary-blue);
+            border-bottom: none;
+        }
+        .browser-tab-close {
+            color: #ff4444;
+            font-weight: bold;
+        }
+        .browser-controls {
+            display: flex;
+            align-items: center;
+            padding: 10px;
+            background: rgba(0, 50, 80, 0.4);
+            gap: 10px;
+            border-bottom: 1px solid var(--primary-blue);
+        }
+        .browser-url-input {
+            flex-grow: 1;
+            background: rgba(0, 0, 0, 0.5);
+            border: 1px solid var(--primary-blue);
+            color: var(--primary-blue);
+            padding: 5px 10px;
+            border-radius: 5px;
+            font-family: 'Rajdhani', sans-serif;
+            font-size: 16px;
+        }
+        .browser-btn {
+            background: rgba(0, 212, 255, 0.2);
+            border: 1px solid var(--primary-blue);
+            color: #fff;
+            padding: 5px 15px;
+            cursor: pointer;
+            border-radius: 5px;
+            font-family: 'Orbitron', monospace;
+            transition: all 0.2s;
+        }
+        .browser-btn:hover { background: rgba(0, 212, 255, 0.5); }
+        .browser-frame-container {
+            flex-grow: 1;
+            position: relative;
+        }
+        .browser-iframe {
+            width: 100%;
+            height: 100%;
+            border: none;
+            background: #fff;
+        }
+        .browser-error-overlay {
+            display: none;
+            position: absolute;
+            top:0; left:0; width:100%; height:100%;
+            background: rgba(0,0,0,0.8);
+            color: #ff0000;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            padding: 20px;
+        }
+
         /* --- LOCK SCREEN --- */
         #lock-screen {
             position: fixed;
@@ -828,6 +934,29 @@
     </style>
 </head>
 <body>
+    <!-- JARVIS BROWSER PANEL -->
+    <div id="jarvis-browser-panel">
+        <div class="browser-header">
+            <div class="browser-tabs" id="browser-tabs-container">
+                <!-- Tabs injected dynamically -->
+            </div>
+            <button class="browser-btn" onclick="addNewBrowserTab()" style="margin-right:15px; padding: 2px 10px;">+ TAB</button>
+            <button class="browser-btn" onclick="toggleBrowser(false)" style="background: rgba(255,0,0,0.2); border-color: red;">X</button>
+        </div>
+        <div class="browser-controls">
+            <input type="text" id="browser-url-input" class="browser-url-input" placeholder="Enter URL (e.g., https://example.com)" onkeydown="if(event.key === 'Enter') navigateActiveTab()">
+            <button class="browser-btn" onclick="navigateActiveTab()">GO</button>
+            <button class="browser-btn" onclick="openActiveTabExternal()" title="Open in External Browser"><i class="fas fa-external-link-alt"></i></button>
+        </div>
+        <div class="browser-frame-container" id="browser-frame-container">
+            <iframe id="browser-iframe" class="browser-iframe" sandbox="allow-scripts allow-same-origin allow-forms allow-popups"></iframe>
+            <div class="browser-error-overlay" id="browser-error-overlay">
+                <h2>CONNECTION REFUSED</h2>
+                <p style="margin-top: 10px; margin-bottom: 20px;">This website's security policy blocks internal framing.</p>
+                <button class="browser-btn" onclick="openActiveTabExternal()" style="border-color: #ff0000; color: #ff0000;">OPEN IN EXTERNAL TAB</button>
+            </div>
+        </div>
+    </div>
     <!-- LOCK SCREEN OVERLAY -->
     <div id="lock-screen">
         <div class="lock-icon"><i class="fas fa-lock"></i></div>
@@ -973,6 +1102,9 @@
         </button>
         <button class="action-btn" onclick="clearHistory()" style="background: rgba(0, 15, 30, 0.85); border: 1px solid rgba(0, 195, 255, 0.3); color: var(--primary-blue); padding: 10px 20px; border-radius: 5px; cursor: pointer; font-family: 'Orbitron', monospace; transition: 0.3s; font-size: 14px;">
             <i class="fas fa-trash-alt"></i> CLEAR MEMORY
+        </button>
+        <button class="action-btn" onclick="toggleBrowser(true)" style="background: rgba(0, 15, 30, 0.85); border: 1px solid rgba(0, 195, 255, 0.3); color: var(--primary-blue); padding: 10px 20px; border-radius: 5px; cursor: pointer; font-family: 'Orbitron', monospace; transition: 0.3s; font-size: 14px;">
+            <i class="fas fa-globe"></i> BROWSER
         </button>
     </div>
 
@@ -1615,6 +1747,27 @@
                 stopHudTelemetry();
                 speak("HUD Mode deactivated.");
                 saveHistory(cmd, "HUD Mode Disabled.");
+                return;
+            }
+
+            // --- BROWSER COMMANDS ---
+            if (query.includes("open browser") || query.includes("launch browser")) {
+                toggleBrowser(true);
+                speak("Browser launched.");
+                saveHistory(cmd, "Browser launched.");
+                return;
+            }
+            if (query.includes("close browser") || query.includes("hide browser")) {
+                toggleBrowser(false);
+                speak("Browser closed.");
+                saveHistory(cmd, "Browser closed.");
+                return;
+            }
+            if (query.includes("new tab") || query.includes("open tab")) {
+                toggleBrowser(true);
+                addNewBrowserTab();
+                speak("New tab opened.");
+                saveHistory(cmd, "New tab opened.");
                 return;
             }
             
@@ -3416,6 +3569,131 @@
             }
             // Remove existing targets
             document.querySelectorAll('.hud-target').forEach(t => t.remove());
+        }
+        /* --- JARVIS BROWSER LOGIC --- */
+        let browserTabs = [];
+        let activeTabId = null;
+        let tabCounter = 0;
+
+        function toggleBrowser(show) {
+            const panel = document.getElementById('jarvis-browser-panel');
+            if (show) {
+                panel.style.display = 'flex';
+                if (browserTabs.length === 0) {
+                    addNewBrowserTab();
+                }
+            } else {
+                panel.style.display = 'none';
+            }
+        }
+
+        function addNewBrowserTab() {
+            tabCounter++;
+            const newTab = {
+                id: tabCounter,
+                url: 'https://en.wikipedia.org/wiki/Main_Page', // default safe site
+                title: 'New Tab'
+            };
+            browserTabs.push(newTab);
+            setActiveTab(newTab.id);
+        }
+
+        function closeBrowserTab(id, event) {
+            event.stopPropagation();
+            browserTabs = browserTabs.filter(t => t.id !== id);
+            if (browserTabs.length === 0) {
+                toggleBrowser(false);
+            } else if (activeTabId === id) {
+                setActiveTab(browserTabs[browserTabs.length - 1].id);
+            } else {
+                renderBrowserTabs();
+            }
+        }
+
+        function setActiveTab(id) {
+            activeTabId = id;
+            const tab = browserTabs.find(t => t.id === id);
+            if (tab) {
+                document.getElementById('browser-url-input').value = tab.url;
+                loadIframeUrl(tab.url);
+            }
+            renderBrowserTabs();
+        }
+
+        function renderBrowserTabs() {
+            const container = document.getElementById('browser-tabs-container');
+            container.innerHTML = '';
+            browserTabs.forEach(tab => {
+                const el = document.createElement('div');
+                el.className = 'browser-tab' + (tab.id === activeTabId ? ' active' : '');
+                el.onclick = () => setActiveTab(tab.id);
+                
+                const titleSpan = document.createElement('span');
+                titleSpan.innerText = tab.title;
+                titleSpan.style.flexGrow = '1';
+                titleSpan.style.overflow = 'hidden';
+                titleSpan.style.textOverflow = 'ellipsis';
+                
+                const closeBtn = document.createElement('span');
+                closeBtn.className = 'browser-tab-close';
+                closeBtn.innerText = 'X';
+                closeBtn.onclick = (e) => closeBrowserTab(tab.id, e);
+                
+                el.appendChild(titleSpan);
+                el.appendChild(closeBtn);
+                container.appendChild(el);
+            });
+        }
+
+        async function navigateActiveTab() {
+            let inputUrl = document.getElementById('browser-url-input').value.trim();
+            if (!inputUrl) return;
+            if (!/^https?:\/\//i.test(inputUrl)) {
+                inputUrl = 'https://' + inputUrl;
+                document.getElementById('browser-url-input').value = inputUrl;
+            }
+
+            const tab = browserTabs.find(t => t.id === activeTabId);
+            if (tab) {
+                tab.url = inputUrl;
+                try {
+                    const u = new URL(inputUrl);
+                    tab.title = u.hostname.replace('www.', '');
+                } catch(e) {
+                    tab.title = inputUrl;
+                }
+                renderBrowserTabs();
+                loadIframeUrl(inputUrl);
+            }
+        }
+
+        async function loadIframeUrl(url) {
+            const iframe = document.getElementById('browser-iframe');
+            const errorOverlay = document.getElementById('browser-error-overlay');
+            
+            // Check frame permissions first
+            try {
+                const res = await fetch(`/api/check-frame?url=${encodeURIComponent(url)}`);
+                const data = await res.json();
+                
+                if (data.canFrame) {
+                    errorOverlay.style.display = 'none';
+                    iframe.src = url;
+                } else {
+                    iframe.src = 'about:blank';
+                    errorOverlay.style.display = 'flex';
+                }
+            } catch (err) {
+                // Network error to our own backend
+                iframe.src = url;
+            }
+        }
+
+        function openActiveTabExternal() {
+            const url = document.getElementById('browser-url-input').value;
+            if (url) {
+                window.open(url, '_blank');
+            }
         }
 
     </script>
