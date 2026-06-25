@@ -304,7 +304,8 @@
         #hud-commands-drawer {
             position: absolute;
             top: 100px;
-            left: -300px;
+            left: -270px; /* Leave 30px visible */
+            transform: translateX(0);
             width: 300px;
             height: 400px;
             background: rgba(0, 15, 30, 0.85);
@@ -312,21 +313,23 @@
             border-left: none;
             border-top-right-radius: 10px;
             border-bottom-right-radius: 10px;
-            transition: left 0.3s ease;
+            transition: transform 0.3s ease;
             z-index: 10002;
             pointer-events: auto;
             color: #00aaff;
             font-family: 'Orbitron', monospace;
             padding: 15px;
+            padding-right: 40px; /* Space for the toggle */
             box-shadow: 5px 0 20px rgba(0,212,255,0.2);
-            overflow-y: auto;
+            overflow: visible;
+            box-sizing: border-box;
         }
         #hud-commands-drawer.open {
-            left: 0;
+            transform: translateX(270px); /* Slide in completely */
         }
         #hud-drawer-toggle {
             position: absolute;
-            right: -30px;
+            right: 0; /* Align to the right edge of the drawer */
             top: 50%;
             transform: translateY(-50%);
             width: 30px;
@@ -816,6 +819,17 @@
     </div>
 
     <div class="footer-info">
+        <div class="action-buttons">
+            <button class="action-btn" onclick="toggleJarvisMode()" id="jarvis-mode-btn">
+                <i class="fas fa-shield-alt"></i> JARVIS MODE: OFF
+            </button>
+            <button class="action-btn" onclick="toggleListening()" id="listen-btn">
+                <i class="fas fa-microphone"></i> SLEEP MODE
+            </button>
+            <button class="action-btn" onclick="clearHistory()">
+                <i class="fas fa-trash-alt"></i> CLEAR MEMORY
+            </button>
+        </div>
         <div>Powered By Atharv Wani</div>
         <div class="ai-disclaimer">DISCLAIMER: ALL DATA IS AI-GENERATED. PLEASE CROSS-CHECK CRITICAL INFORMATION.</div>
     </div>
@@ -985,6 +999,25 @@
         renderHistory();
 
         let currentMicLang = 'en-US';
+        let jarvisMode = false;
+
+        function toggleJarvisMode() {
+            jarvisMode = !jarvisMode;
+            const btn = document.getElementById('jarvis-mode-btn');
+            if (jarvisMode) {
+                btn.innerHTML = '<i class="fas fa-shield-alt"></i> JARVIS MODE: ON';
+                btn.style.color = '#0f0';
+                btn.style.borderColor = '#0f0';
+                btn.style.boxShadow = '0 0 10px rgba(0, 255, 0, 0.5)';
+                speak("JARVIS Mode engaged. I will remain on standby until addressed, Sir.");
+            } else {
+                btn.innerHTML = '<i class="fas fa-shield-alt"></i> JARVIS MODE: OFF';
+                btn.style.color = 'var(--primary-blue)';
+                btn.style.borderColor = 'rgba(0, 195, 255, 0.3)';
+                btn.style.boxShadow = 'none';
+                speak("JARVIS Mode disengaged.");
+            }
+        }
 
         // --- SPEECH RECOGNITION ---
         if ('webkitSpeechRecognition' in window) {
@@ -1014,15 +1047,15 @@
                     let cmdText = finalTranscript.trim();
                     const hud = document.getElementById('iron-man-hud');
                     
-                    // --- WAKE WORD LOGIC (HUD MODE ONLY) ---
-                    if (hud && hud.style.display === 'block') {
+                    // --- WAKE WORD LOGIC (HUD MODE & JARVIS MODE) ---
+                    if ((hud && hud.style.display === 'block') || jarvisMode) {
                         const wakeWordMatch = cmdText.match(/jarvis(.*)/i);
                         if (wakeWordMatch) {
                             cmdText = wakeWordMatch[1].trim() || "status report";
-                            logEl.innerText = "HUD COMMAND: " + cmdText;
+                            logEl.innerText = ((hud && hud.style.display === 'block') ? "HUD COMMAND: " : "JARVIS MODE COMMAND: ") + cmdText;
                         } else {
                             // Ignore speech not directed at JARVIS
-                            logEl.innerText = "HUD WAKE: AWAITING 'JARVIS'";
+                            logEl.innerText = "WAKE WORD AWAITING 'JARVIS'";
                             return; 
                         }
                     } else {
@@ -1406,8 +1439,8 @@
                 }
 
                 if (query.includes("workshop") || query.includes("repair")) {
-                    suitPower = -100; // Force updateSuitPower to add 100 and max out at 100
-                    updateSuitPower(-100); 
+                    suitPower = 100; // Reset power directly
+                    updateSuitPower(0); // This just updates the UI to show 100%
                     missiles = 12;
                     flares = 20;
                     isFlying = false;
