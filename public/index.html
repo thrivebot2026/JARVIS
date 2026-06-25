@@ -752,10 +752,18 @@
         <div id="history-content"></div>
     </div>
 
-    <!-- JARVIS MODE TOGGLE (TOP LEFT AFTER CHAT LOG) -->
-    <button onclick="toggleJarvisMode()" id="jarvis-mode-btn" style="position: absolute; top: 20px; left: 420px; z-index: 1000; background: rgba(0, 15, 30, 0.85); border: 1px solid rgba(0, 195, 255, 0.3); color: var(--primary-blue); padding: 10px 20px; border-radius: 5px; cursor: pointer; font-family: 'Orbitron', monospace; transition: 0.3s; font-size: 14px;">
-        <i class="fas fa-shield-alt"></i> JARVIS MODE: OFF
-    </button>
+    <!-- TOP ACTION BUTTONS (AFTER CHAT LOG) -->
+    <div style="position: absolute; top: 20px; left: 420px; z-index: 1000; display: flex; gap: 10px;">
+        <button onclick="toggleJarvisMode()" id="jarvis-mode-btn" style="background: rgba(0, 15, 30, 0.85); border: 1px solid rgba(0, 195, 255, 0.3); color: var(--primary-blue); padding: 10px 20px; border-radius: 5px; cursor: pointer; font-family: 'Orbitron', monospace; transition: 0.3s; font-size: 14px;">
+            <i class="fas fa-shield-alt"></i> JARVIS MODE: OFF
+        </button>
+        <button class="action-btn" onclick="toggleListening()" id="listen-btn" style="background: rgba(0, 15, 30, 0.85); border: 1px solid rgba(0, 195, 255, 0.3); color: var(--primary-blue); padding: 10px 20px; border-radius: 5px; cursor: pointer; font-family: 'Orbitron', monospace; transition: 0.3s; font-size: 14px;">
+            <i class="fas fa-microphone"></i> SLEEP MODE
+        </button>
+        <button class="action-btn" onclick="clearHistory()" style="background: rgba(0, 15, 30, 0.85); border: 1px solid rgba(0, 195, 255, 0.3); color: var(--primary-blue); padding: 10px 20px; border-radius: 5px; cursor: pointer; font-family: 'Orbitron', monospace; transition: 0.3s; font-size: 14px;">
+            <i class="fas fa-trash-alt"></i> CLEAR MEMORY
+        </button>
+    </div>
 
     <div class="main-container">
         <div class="soundwaves" id="waves">
@@ -824,14 +832,6 @@
     </div>
 
     <div class="footer-info">
-        <div class="action-buttons">
-            <button class="action-btn" onclick="toggleListening()" id="listen-btn">
-                <i class="fas fa-microphone"></i> SLEEP MODE
-            </button>
-            <button class="action-btn" onclick="clearHistory()">
-                <i class="fas fa-trash-alt"></i> CLEAR MEMORY
-            </button>
-        </div>
         <div>Powered By Atharv Wani</div>
         <div class="ai-disclaimer">DISCLAIMER: ALL DATA IS AI-GENERATED. PLEASE CROSS-CHECK CRITICAL INFORMATION.</div>
     </div>
