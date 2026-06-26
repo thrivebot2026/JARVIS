@@ -2505,6 +2505,16 @@
                 return;
             }
 
+            // --- SPEED TEST COMMANDS ---
+            if (query.includes("speed test") || query.includes("internet speed")) {
+                logEl.innerText = "OPENING SPEED TEST...";
+                speak("Running broadband diagnostic, Sir.");
+                saveHistory(cmd, "Speed test initiated.");
+                const url = "https://openspeedtest.com/speedtest";
+                openIframePanel("BROADBAND DIAGNOSTIC", url);
+                return;
+            }
+
             // --- CURRENCY CONVERTER COMMANDS ---
             const currMatch = query.match(/convert ([\d.]+) (.+) to (.+)/);
             if (currMatch) {
