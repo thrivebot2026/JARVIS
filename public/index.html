@@ -1035,6 +1035,42 @@
             pointer-events: auto;
         }
 
+        #holographic-timer {
+            display: none;
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 350px;
+            height: 350px;
+            border-radius: 50%;
+            border: 2px solid var(--primary-blue);
+            box-shadow: 0 0 50px rgba(0, 212, 255, 0.5), inset 0 0 50px rgba(0, 212, 255, 0.5);
+            background: rgba(0, 15, 30, 0.8);
+            z-index: 10000;
+            align-items: center;
+            justify-content: center;
+            flex-direction: column;
+            animation: pulse-timer 2s infinite alternate;
+            backdrop-filter: blur(10px);
+        }
+        @keyframes pulse-timer {
+            from { box-shadow: 0 0 20px rgba(0,212,255,0.3), inset 0 0 20px rgba(0,212,255,0.3); border-color: rgba(0,212,255,0.5); }
+            to { box-shadow: 0 0 60px rgba(0,212,255,0.8), inset 0 0 60px rgba(0,212,255,0.8); border-color: rgba(0,212,255,1); }
+        }
+        #timer-display {
+            font-size: 5em;
+            font-family: 'Courier New', Courier, monospace;
+            font-weight: bold;
+            color: var(--primary-blue);
+            text-shadow: 0 0 15px var(--primary-blue);
+        }
+        #timer-label {
+            font-size: 1.2em;
+            color: rgba(0, 212, 255, 0.7);
+            margin-top: 10px;
+            letter-spacing: 4px;
+        }
     </style>
 </head>
 <body>
@@ -1348,6 +1384,11 @@
     <div class="footer-info">
         <div>Powered By Atharv Wani</div>
         <div class="ai-disclaimer">DISCLAIMER: ALL DATA IS AI-GENERATED. PLEASE CROSS-CHECK CRITICAL INFORMATION.</div>
+    </div>
+
+    <div id="holographic-timer">
+        <div id="timer-display">00:00</div>
+        <div id="timer-label">COUNTDOWN</div>
     </div>
 
     <!-- YouTube IFrame API -->
@@ -2216,6 +2257,73 @@
                 }
             }
             
+            // --- TIMER PROTOCOL ---
+            const timerMatch = query.match(/(?:set a timer for|start a timer for|timer for) (\d+) (second|seconds|minute|minutes)/i);
+            if (timerMatch) {
+                const amount = parseInt(timerMatch[1]);
+                const unit = timerMatch[2].toLowerCase();
+                let seconds = unit.startsWith('minute') ? amount * 60 : amount;
+                
+                speak(`Setting timer for ${amount} ${unit}, Sir.`);
+                const timerEl = document.getElementById('holographic-timer');
+                const display = document.getElementById('timer-display');
+                timerEl.style.display = 'flex';
+                
+                const formatTime = (s) => {
+                    const m = Math.floor(s / 60);
+                    const remS = s % 60;
+                    return `${m.toString().padStart(2, '0')}:${remS.toString().padStart(2, '0')}`;
+                };
+                display.innerText = formatTime(seconds);
+                
+                if (window.activeTimer) clearInterval(window.activeTimer);
+                window.activeTimer = setInterval(() => {
+                    seconds--;
+                    if (seconds <= 0) {
+                        clearInterval(window.activeTimer);
+                        display.innerText = "00:00";
+                        speak("Timer complete, Sir.");
+                        playSynthSound('ring');
+                        document.body.style.animation = 'flash-fade 2s infinite';
+                        setTimeout(() => { document.body.style.animation = ''; timerEl.style.display = 'none'; }, 6000);
+                    } else {
+                        display.innerText = formatTime(seconds);
+                    }
+                }, 1000);
+                return;
+            }
+            if (query.includes("stop timer") || query.includes("cancel timer")) {
+                if (window.activeTimer) clearInterval(window.activeTimer);
+                document.getElementById('holographic-timer').style.display = 'none';
+                speak("Timer cancelled, Sir.");
+                return;
+            }
+
+            // --- HOUSE PARTY PROTOCOL ---
+            if (query.includes("house party protocol")) {
+                speak("Initiating House Party Protocol, Sir. Stand back.", 'en', 'EXCITED');
+                
+                // Play AC/DC Shoot to Thrill
+                playYouTubeVideo('xRQnJyP77tY'); 
+                
+                // Flash lights
+                document.body.style.animation = 'flash-fade 1s infinite alternate';
+                setTimeout(() => document.body.style.animation = '', 15000); // 15 seconds of flashing
+                
+                // Pop up multiple windows sequentially
+                setTimeout(() => {
+                    openIframePanel("WEATHER RADAR", "https://embed.windy.com/embed2.html?lat=44.8547&lon=-93.4708&detailLat=44.8547&detailLon=-93.4708&width=650&height=450&zoom=8&level=surface&overlay=radar&product=radar&menu=&message=&marker=true&calendar=now&city=&type=map&location=coordinates&detail=&metricWind=mph&metricTemp=%C2%B0F&radarRange=-1");
+                }, 1500);
+                setTimeout(() => {
+                    document.getElementById('iron-man-hud').style.display = 'block';
+                    updateSuitPower(100);
+                }, 3000);
+                setTimeout(() => {
+                    openWhiteboard();
+                }, 4500);
+                return;
+            }
+
             // --- WORKSPACE ROUTINE CREATION STATE ---
             if (routineBeingCreated) {
                 // Extract websites from the user's spoken list
