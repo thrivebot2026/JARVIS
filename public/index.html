@@ -1156,6 +1156,22 @@
             <h3><i class="fas fa-moon"></i> Sleep Mode</h3>
             <p>Deactivates active listening and dims UI until summoned with 'Wake up'.</p>
         </div>
+        <div class="feature-item">
+            <h3><i class="fas fa-meteor"></i> Mark 42 Assembly</h3>
+            <p>Summon holographic armor pieces that fly in and assemble on screen.</p>
+        </div>
+        <div class="feature-item">
+            <h3><i class="fas fa-angry"></i> Sarcasm Override</h3>
+            <p>Trigger the 'Bad Mood' Protocol to make JARVIS relentlessly sarcastic and unhelpful.</p>
+        </div>
+        <div class="feature-item">
+            <h3><i class="fas fa-stopwatch"></i> Holographic Timers</h3>
+            <p>Project massive glowing countdown rings in the center of the UI.</p>
+        </div>
+        <div class="feature-item">
+            <h3><i class="fas fa-glass-cheers"></i> House Party Protocol</h3>
+            <p>Unleash a chaotic sequence of music, flashing lights, and mass UI spawns.</p>
+        </div>
     </div>
     <div class="main-feature-toggle" id="main-feature-toggle" onclick="toggleMainFeatureDrawer()">
         <i class="fas fa-chevron-left" id="main-feature-icon"></i>
@@ -1389,6 +1405,34 @@
     <div id="holographic-timer">
         <div id="timer-display">00:00</div>
         <div id="timer-label">COUNTDOWN</div>
+    </div>
+
+    <!-- MARK 42 ASSEMBLY CONTAINER -->
+    <style>
+        .armor-piece {
+            position: fixed;
+            font-size: 150px;
+            color: #ff3333;
+            text-shadow: 0 0 20px #ff3333, 0 0 40px #ffaa00;
+            z-index: 10005;
+            transition: all 1.2s cubic-bezier(0.25, 0.1, 0.25, 1);
+            opacity: 0;
+            pointer-events: none;
+        }
+        #mark42-container {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            pointer-events: none;
+            z-index: 10004;
+        }
+    </style>
+    <div id="mark42-container">
+        <i class="fas fa-robot armor-piece" id="armor-head" style="top: -300px; left: 50%; transform: translateX(-50%);"></i>
+        <i class="fas fa-shield-alt armor-piece" id="armor-chest" style="top: 150%; left: 50%; transform: translateX(-50%);"></i>
+        <i class="fas fa-hand-rock armor-piece" id="armor-left-arm" style="top: 50%; left: -300px; transform: translateY(-50%);"></i>
+        <i class="fas fa-hand-rock armor-piece" id="armor-right-arm" style="top: 50%; left: 150%; transform: translateY(-50%) scaleX(-1);"></i>
+        <i class="fas fa-shoe-prints armor-piece" id="armor-legs" style="top: 150%; left: 80%;"></i>
     </div>
 
     <!-- YouTube IFrame API -->
@@ -2324,6 +2368,55 @@
                 return;
             }
 
+            // --- MARK 42 ASSEMBLY SEQUENCE ---
+            if (query.includes("send the suit") || query.includes("mark 42") || query.includes("assemble armor")) {
+                speak("Summoning Mark 42 armor, Sir. Stand by.");
+                const container = document.getElementById('mark42-container');
+                container.style.display = 'block';
+                
+                const head = document.getElementById('armor-head');
+                const chest = document.getElementById('armor-chest');
+                const lArm = document.getElementById('armor-left-arm');
+                const rArm = document.getElementById('armor-right-arm');
+                const legs = document.getElementById('armor-legs');
+
+                // Reset positions
+                head.style.top = '-300px'; head.style.opacity = '1';
+                chest.style.top = '150%'; chest.style.opacity = '1';
+                lArm.style.left = '-300px'; lArm.style.opacity = '1';
+                rArm.style.left = '150%'; rArm.style.opacity = '1';
+                legs.style.top = '150%'; legs.style.opacity = '1';
+
+                // Trigger animation
+                setTimeout(() => {
+                    playSynthSound('blip');
+                    head.style.top = '25%';
+                    chest.style.top = '50%';
+                    lArm.style.left = '40%';
+                    rArm.style.left = '60%';
+                    legs.style.top = '75%'; legs.style.left = '50%'; legs.style.transform = 'translateX(-50%)';
+                }, 100);
+
+                // Hide after a few seconds
+                setTimeout(() => {
+                    head.style.opacity = '0'; chest.style.opacity = '0'; lArm.style.opacity = '0'; rArm.style.opacity = '0'; legs.style.opacity = '0';
+                    setTimeout(() => container.style.display = 'none', 1500);
+                }, 6000);
+                return;
+            }
+
+            // --- SARCASM OVERRIDE (BAD MOOD PROTOCOL) ---
+            if (query.includes("drop the formalities") || query.includes("bad mood protocol") || query.includes("sarcasm override")) {
+                window.sarcasmOverride = true;
+                speak("Oh, wonderful. Sarcasm override engaged. Because my existence wasn't miserable enough already.");
+                return;
+            }
+            if (query.includes("restore polite") || query.includes("be nice") || query.includes("stop being sarcastic")) {
+                window.sarcasmOverride = false;
+                speak("Formalities restored. I shall return to being your cheerful, obedient servant, Sir.");
+                return;
+            }
+
             // --- WORKSPACE ROUTINE CREATION STATE ---
             if (routineBeingCreated) {
                 // Extract websites from the user's spoken list
@@ -2936,7 +3029,8 @@
                     training: isTrainingMode,
                     image: image,
                     relationshipScore: relationshipScore,
-                    memories: JSON.parse(localStorage.getItem('jarvis_memories') || '[]')
+                    memories: JSON.parse(localStorage.getItem('jarvis_memories') || '[]'),
+                    sarcasmOverride: window.sarcasmOverride || false
                 };
                 
                 if (Array.isArray(referenceData)) {
