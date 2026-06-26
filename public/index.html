@@ -1425,6 +1425,29 @@
             pointer-events: none;
             z-index: 10004;
         }
+
+        /* LASER CUTTER CSS */
+        .laser-burn {
+            position: fixed;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: #ffaa00;
+            box-shadow: 0 0 10px #ff3333, 0 0 20px #ffaa00;
+            pointer-events: none;
+            z-index: 10006;
+            animation: burn-fade 3s forwards;
+            transform: translate(-50%, -50%);
+        }
+        @keyframes burn-fade {
+            0% { background: #ffffff; box-shadow: 0 0 10px #ffffff, 0 0 20px #ffaa00, 0 0 40px #ff3333; transform: translate(-50%, -50%) scale(1.5); }
+            10% { background: #ffaa00; box-shadow: 0 0 10px #ff3333, 0 0 20px #ffaa00; transform: translate(-50%, -50%) scale(1); }
+            50% { background: #ff3333; box-shadow: 0 0 5px #ff0000; opacity: 1; }
+            100% { background: #330000; box-shadow: none; opacity: 0; }
+        }
+        body.laser-active {
+            cursor: crosshair !important;
+        }
     </style>
     <div id="mark42-container">
         <img src="/assets/mark42_helmet.png" class="armor-piece" id="armor-head" style="top: -300px; left: 50%; transform: translateX(-50%); width: 150px;">
@@ -1433,6 +1456,10 @@
         <img src="/assets/mark42_arm.png" class="armor-piece" id="armor-right-arm" style="top: 50%; left: 150%; transform: translateY(-50%) scaleX(-1); width: 120px;">
         <img src="/assets/mark42_legs.png" class="armor-piece" id="armor-legs" style="top: 150%; left: 50%; width: 220px; transform: translateX(-50%);">
     </div>
+
+    <!-- Companion Drone -->
+    <img src="/assets/drone.png" id="companion-drone" style="display: none; position: fixed; top: -200px; left: -200px; width: 150px; z-index: 9999; mix-blend-mode: screen; filter: drop-shadow(0 0 15px #00d4ff); pointer-events: none; transition: transform 0.2s;">
+
 
     <!-- YouTube IFrame API -->
     <script src="https://www.youtube.com/iframe_api"></script>
@@ -1460,6 +1487,72 @@
         let jarvisLevel = localStorage.getItem('jarvis_level') ? parseInt(localStorage.getItem('jarvis_level')) : 1;
         
         let systemLocked = true; // Lock the system by default on load
+
+        // --- EASTER EGG STATE ---
+        let laserActive = false;
+        let isLaserDrawing = false;
+        let droneActive = false;
+        let globalMouseX = 0;
+        let globalMouseY = 0;
+        let droneX = -200;
+        let droneY = -200;
+
+        document.addEventListener('mousemove', (e) => {
+            globalMouseX = e.clientX;
+            globalMouseY = e.clientY;
+            if (laserActive && isLaserDrawing) {
+                createLaserBurn(e.clientX, e.clientY);
+            }
+        });
+
+        document.addEventListener('mousedown', (e) => {
+            if (laserActive) {
+                isLaserDrawing = true;
+                createLaserBurn(e.clientX, e.clientY);
+            }
+        });
+
+        document.addEventListener('mouseup', () => {
+            isLaserDrawing = false;
+        });
+
+        function createLaserBurn(x, y) {
+            const burn = document.createElement('div');
+            burn.className = 'laser-burn';
+            burn.style.left = x + 'px';
+            burn.style.top = y + 'px';
+            document.body.appendChild(burn);
+            // playSynthSound('blip'); // Too noisy to play on every mouse drag tick
+            setTimeout(() => {
+                if (document.body.contains(burn)) {
+                    document.body.removeChild(burn);
+                }
+            }, 3000);
+        }
+
+        function animateDrone() {
+            if (!droneActive) return;
+            
+            // Lerp drone towards mouse
+            droneX += (globalMouseX - droneX) * 0.05;
+            droneY += (globalMouseY - droneY) * 0.05;
+            
+            // Add some hovering bob
+            const bob = Math.sin(Date.now() / 300) * 10;
+            
+            const droneEl = document.getElementById('companion-drone');
+            if (droneEl) {
+                droneEl.style.left = (droneX + 30) + 'px'; // offset to right of mouse
+                droneEl.style.top = (droneY + bob) + 'px';
+                
+                // Tilt based on movement
+                const dx = globalMouseX - droneX;
+                const tilt = Math.max(-30, Math.min(30, dx * 0.1));
+                droneEl.style.transform = `rotate(${tilt}deg)`;
+            }
+            
+            requestAnimationFrame(animateDrone);
+        }
 
         // --- LOCK SCREEN LOGIC ---
         const lockScreen = document.getElementById('lock-screen');
@@ -2413,6 +2506,40 @@
             if (query.includes("restore polite") || query.includes("be nice") || query.includes("stop being sarcastic")) {
                 window.sarcasmOverride = false;
                 speak("Formalities restored. I shall return to being your cheerful, obedient servant, Sir.");
+                return;
+            }
+
+            // --- LASER CUTTER PROTOCOL ---
+            if (query.includes("laser cutter") || query.includes("laser mode")) {
+                if (query.includes("deactivate") || query.includes("disable") || query.includes("stop")) {
+                    laserActive = false;
+                    document.body.classList.remove('laser-active');
+                    speak("Laser cutter disengaged, Sir.");
+                } else {
+                    laserActive = true;
+                    document.body.classList.add('laser-active');
+                    speak("Laser cutter active. Caution recommended, Sir.");
+                }
+                return;
+            }
+
+            // --- DRONE DEPLOYMENT ---
+            if (query.includes("deploy drone") || query.includes("send drone")) {
+                droneActive = true;
+                const droneEl = document.getElementById('companion-drone');
+                droneEl.style.display = 'block';
+                droneX = -200;
+                droneY = globalMouseY;
+                speak("Companion drone deployed, Sir. It will follow your cursor.");
+                requestAnimationFrame(animateDrone);
+                return;
+            }
+            
+            if (query.includes("recall drone") || query.includes("return drone")) {
+                droneActive = false;
+                const droneEl = document.getElementById('companion-drone');
+                droneEl.style.display = 'none';
+                speak("Drone recalled to base.");
                 return;
             }
 
