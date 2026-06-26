@@ -2380,20 +2380,20 @@
                 const legs = document.getElementById('armor-legs');
 
                 // Reset positions
-                head.style.top = '-300px'; head.style.opacity = '1';
-                chest.style.top = '150%'; chest.style.opacity = '1';
-                lArm.style.left = '-300px'; lArm.style.opacity = '1';
-                rArm.style.left = '150%'; rArm.style.opacity = '1';
-                legs.style.top = '150%'; legs.style.opacity = '1';
+                head.style.top = '-20%'; head.style.left = '50%'; head.style.opacity = '1';
+                chest.style.top = '120%'; chest.style.left = '50%'; chest.style.opacity = '1';
+                lArm.style.top = '50%'; lArm.style.left = '-20%'; lArm.style.opacity = '1';
+                rArm.style.top = '50%'; rArm.style.left = '120%'; rArm.style.opacity = '1';
+                legs.style.top = '120%'; legs.style.left = '50%'; legs.style.opacity = '1';
 
                 // Trigger animation
                 setTimeout(() => {
                     playSynthSound('blip');
-                    head.style.top = '25%';
+                    head.style.top = 'calc(50% - 160px)';
                     chest.style.top = '50%';
-                    lArm.style.left = '40%';
-                    rArm.style.left = '60%';
-                    legs.style.top = '75%'; legs.style.left = '50%'; legs.style.transform = 'translateX(-50%)';
+                    lArm.style.left = 'calc(50% - 150px)';
+                    rArm.style.left = 'calc(50% + 150px)';
+                    legs.style.top = 'calc(50% + 180px)';
                 }, 100);
 
                 // Hide after a few seconds
