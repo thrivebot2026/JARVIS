@@ -1411,13 +1411,12 @@
     <style>
         .armor-piece {
             position: fixed;
-            font-size: 150px;
-            color: #ff3333;
-            text-shadow: 0 0 20px #ff3333, 0 0 40px #ffaa00;
             z-index: 10005;
             transition: all 1.2s cubic-bezier(0.25, 0.1, 0.25, 1);
             opacity: 0;
             pointer-events: none;
+            mix-blend-mode: screen;
+            filter: drop-shadow(0 0 20px #ff3333);
         }
         #mark42-container {
             display: none;
@@ -1428,11 +1427,11 @@
         }
     </style>
     <div id="mark42-container">
-        <i class="fas fa-robot armor-piece" id="armor-head" style="top: -300px; left: 50%; transform: translateX(-50%);"></i>
-        <i class="fas fa-shield-alt armor-piece" id="armor-chest" style="top: 150%; left: 50%; transform: translateX(-50%);"></i>
-        <i class="fas fa-hand-rock armor-piece" id="armor-left-arm" style="top: 50%; left: -300px; transform: translateY(-50%);"></i>
-        <i class="fas fa-hand-rock armor-piece" id="armor-right-arm" style="top: 50%; left: 150%; transform: translateY(-50%) scaleX(-1);"></i>
-        <i class="fas fa-shoe-prints armor-piece" id="armor-legs" style="top: 150%; left: 80%;"></i>
+        <img src="/assets/mark42_helmet.png" class="armor-piece" id="armor-head" style="top: -300px; left: 50%; transform: translateX(-50%); width: 150px;">
+        <img src="/assets/mark42_chest.png" class="armor-piece" id="armor-chest" style="top: 150%; left: 50%; transform: translateX(-50%); width: 250px;">
+        <img src="/assets/mark42_arm.png" class="armor-piece" id="armor-left-arm" style="top: 50%; left: -300px; transform: translateY(-50%); width: 120px;">
+        <img src="/assets/mark42_arm.png" class="armor-piece" id="armor-right-arm" style="top: 50%; left: 150%; transform: translateY(-50%) scaleX(-1); width: 120px;">
+        <img src="/assets/mark42_legs.png" class="armor-piece" id="armor-legs" style="top: 150%; left: 50%; width: 220px; transform: translateX(-50%);">
     </div>
 
     <!-- YouTube IFrame API -->
