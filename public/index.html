@@ -1427,21 +1427,20 @@
         }
 
         /* LASER CUTTER CSS */
-        .laser-burn {
+        .laser-line {
             position: fixed;
-            width: 12px;
             height: 12px;
-            border-radius: 50%;
             background: #ffaa00;
             box-shadow: 0 0 10px #ff3333, 0 0 20px #ffaa00;
             pointer-events: none;
             z-index: 10006;
-            animation: burn-fade 3s forwards;
-            transform: translate(-50%, -50%);
+            animation: line-fade 3s forwards;
+            transform-origin: 0 50%;
+            border-radius: 6px;
         }
-        @keyframes burn-fade {
-            0% { background: #ffffff; box-shadow: 0 0 10px #ffffff, 0 0 20px #ffaa00, 0 0 40px #ff3333; transform: translate(-50%, -50%) scale(1.5); }
-            10% { background: #ffaa00; box-shadow: 0 0 10px #ff3333, 0 0 20px #ffaa00; transform: translate(-50%, -50%) scale(1); }
+        @keyframes line-fade {
+            0% { background: #ffffff; box-shadow: 0 0 10px #ffffff, 0 0 20px #ffaa00, 0 0 40px #ff3333; filter: brightness(1.5); }
+            10% { background: #ffaa00; box-shadow: 0 0 10px #ff3333, 0 0 20px #ffaa00; }
             50% { background: #ff3333; box-shadow: 0 0 5px #ff0000; opacity: 1; }
             100% { background: #330000; box-shadow: none; opacity: 0; }
         }
@@ -1459,7 +1458,7 @@
     </div>
 
     <!-- Companion Drone (CSS Only) -->
-    <div id="companion-drone" style="display: none; position: fixed; top: -200px; left: -200px; z-index: 9999; pointer-events: none; transition: transform 0.2s;">
+    <div id="companion-drone" style="display: none; position: fixed; top: -200px; left: -200px; z-index: 2147483647; pointer-events: none; transition: transform 0.2s;">
         <div style="position: relative; width: 60px; height: 60px; filter: drop-shadow(0 0 10px #00d4ff);">
             <div style="position: absolute; top: 25px; left: 10px; width: 40px; height: 10px; background: #fff; border-radius: 5px;"></div>
             <div style="position: absolute; top: 10px; left: 25px; width: 10px; height: 40px; background: #fff; border-radius: 5px;"></div>
@@ -1514,14 +1513,7 @@
             globalMouseX = e.clientX;
             globalMouseY = e.clientY;
             if (laserActive && isLaserDrawing) {
-                const dist = Math.hypot(e.clientX - lastLaserX, e.clientY - lastLaserY);
-                const steps = Math.max(1, Math.floor(dist / 3)); // Dense line
-                for (let i = 1; i <= steps; i++) {
-                    const t = i / steps;
-                    const x = lastLaserX + (e.clientX - lastLaserX) * t;
-                    const y = lastLaserY + (e.clientY - lastLaserY) * t;
-                    createLaserBurn(x, y);
-                }
+                createLaserLine(lastLaserX, lastLaserY, e.clientX, e.clientY);
                 lastLaserX = e.clientX;
                 lastLaserY = e.clientY;
             }
@@ -1532,7 +1524,8 @@
                 isLaserDrawing = true;
                 lastLaserX = e.clientX;
                 lastLaserY = e.clientY;
-                createLaserBurn(e.clientX, e.clientY);
+                // Just draw a tiny dot at start
+                createLaserLine(e.clientX, e.clientY, e.clientX + 1, e.clientY + 1);
             }
         });
 
@@ -1540,16 +1533,21 @@
             isLaserDrawing = false;
         });
 
-        function createLaserBurn(x, y) {
-            const burn = document.createElement('div');
-            burn.className = 'laser-burn';
-            burn.style.left = x + 'px';
-            burn.style.top = y + 'px';
-            document.body.appendChild(burn);
-            // playSynthSound('blip'); // Too noisy to play on every mouse drag tick
+        function createLaserLine(x1, y1, x2, y2) {
+            const dist = Math.hypot(x2 - x1, y2 - y1);
+            const angle = Math.atan2(y2 - y1, x2 - x1) * 180 / Math.PI;
+            
+            const line = document.createElement('div');
+            line.className = 'laser-line';
+            line.style.left = x1 + 'px';
+            line.style.top = y1 + 'px';
+            line.style.width = Math.max(dist, 12) + 'px'; // At least 12px so it forms a dot if not moving
+            line.style.transform = `rotate(${angle}deg)`;
+            document.body.appendChild(line);
+            
             setTimeout(() => {
-                if (document.body.contains(burn)) {
-                    document.body.removeChild(burn);
+                if (document.body.contains(line)) {
+                    document.body.removeChild(line);
                 }
             }, 3000);
         }
