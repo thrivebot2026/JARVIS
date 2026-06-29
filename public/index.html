@@ -3208,14 +3208,22 @@
                     }
 
                     const genericReply = "I apologize, Sir. Neural link unstable.";
-                    speak(genericReply);
+                    if (!jarvisMode) {
+                        speak(genericReply);
+                    } else {
+                        console.warn("JARVIS Mode suppressed error speech: " + genericReply);
+                    }
                     saveHistory("System Status", genericReply);
                     throw new Error(errorMsg);
                 }
 
                 if (!data.candidates || data.candidates.length === 0) {
                     const reply = "I apologize, Sir. My neural pathways are clouded. Please rephrase.";
-                    speak(reply);
+                    if (!jarvisMode) {
+                        speak(reply);
+                    } else {
+                        console.warn("JARVIS Mode suppressed error speech: " + reply);
+                    }
                     saveHistory(query, reply);
                     return;
                 }
@@ -3402,7 +3410,11 @@
                 console.error("AI Error:", err);
                 const shortError = "I apologize, Sir. Neural link offline.";
                 if (logEl.innerText !== "ERROR: Quota Exceeded") {
-                    speak(shortError);
+                    if (!jarvisMode) {
+                        speak(shortError);
+                    } else {
+                        console.warn("JARVIS Mode suppressed error speech: " + shortError);
+                    }
                     saveHistory("System Error", shortError);
                 }
                 logEl.innerText = "ERROR: " + err.message;
