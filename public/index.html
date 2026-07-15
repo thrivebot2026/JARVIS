@@ -1121,6 +1121,24 @@
     </style>
 </head>
 <body>
+    <style>
+        @keyframes laserSweep {
+            0% { top: 0; }
+            50% { top: calc(100% - 4px); }
+            100% { top: 0; }
+        }
+        .laser-beam {
+            position: absolute;
+            left: 0;
+            width: 100%;
+            height: 4px;
+            background: #00ffff;
+            box-shadow: 0 0 15px #00ffff, 0 0 30px #00ffff;
+            z-index: 10;
+            display: none;
+            animation: laserSweep 2s infinite ease-in-out;
+        }
+    </style>
     <!-- AR Notes SVG Lines -->
     <svg id="ar-lines-svg" style="position:fixed; top:0; left:0; width:100%; height:100%; pointer-events:none; z-index:49;"></svg>
     <!-- AR Notes Container -->
@@ -1136,6 +1154,19 @@
         <div id="gods-eye-grid" style="display:grid; grid-template-columns:1fr 1fr; gap:20px; max-width:1600px; margin:0 auto; height:calc(100% - 150px);">
             <!-- Iframes injected here via JS to save memory -->
         </div>
+    </div>
+
+    <!-- Phishing Modal (Phase 4) -->
+    <div id="phishing-modal" style="display:none; position:fixed; top:50%; left:50%; transform:translate(-50%, -50%); width:600px; height:450px; background:rgba(0,10,20,0.95); border:2px solid #00ffff; box-shadow:0 0 30px rgba(0,255,255,0.4); z-index:900; padding:20px; font-family:'Rajdhani', sans-serif;">
+        <i class="fas fa-times" style="position:absolute; top:15px; right:20px; font-size:24px; color:#00ffff; cursor:pointer;" onclick="document.getElementById('phishing-modal').style.display='none'"></i>
+        <h2 style="color:#00ffff; text-align:center; font-family:'Orbitron'; margin-bottom: 5px;"><i class="fas fa-shield-alt"></i> CYBER-THREAT SCANNER</h2>
+        <p style="text-align:center; color:#888;">Drop text, URLs, or emails below for Deep Scan</p>
+        
+        <div id="phishing-dropzone-container" style="position:relative; width:100%; height:280px; border:2px dashed #00ffff; margin-top:15px; background:rgba(0,255,255,0.05); overflow:hidden; display:flex; justify-content:center; align-items:center;">
+            <div id="phishing-laser" class="laser-beam"></div>
+            <textarea id="phishing-input" style="width:100%; height:100%; background:transparent; border:none; color:#00ffff; padding:20px; font-size:16px; outline:none; resize:none;" placeholder="Paste or drop content here..."></textarea>
+        </div>
+        <button onclick="runPhishingScan()" style="width:100%; padding:12px; margin-top:15px; background:#00ffff; color:#000; border:none; font-family:'Orbitron'; font-weight:bold; cursor:pointer; font-size: 16px;">INITIATE SCAN</button>
     </div>
 
     <!-- MARKET UI (Phase 2) -->
@@ -1306,6 +1337,11 @@
                 <button onclick="addContextualReminder()" style="background:#ff00ff; border:none; color:#fff; padding:5px; cursor:pointer;">SET REMINDER</button>
             </div>
             <div id="cr-list" style="margin-top:5px; font-size:12px; color:#ff00ff;"></div>
+        </div>
+
+        <div class="feature-item" onclick="togglePhishingScanner()" style="cursor: pointer; border: 1px solid #00ffff; margin-top: 10px; background: rgba(0,255,255,0.05);">
+            <h3 style="color: #00ffff;"><i class="fas fa-shield-alt"></i> Cyber-Threat Scanner</h3>
+            <p>AI-powered phishing and payload detection.</p>
         </div>
 
         <div class="feature-item" onclick="openHologram('cube')" style="cursor: pointer; border: 1px solid var(--primary-blue); margin-top: 10px; background: rgba(0,212,255,0.05);">
@@ -5807,13 +5843,95 @@
             }
         }
 
+        // --- PHISHING LASER-SCAN (Phase 4) ---
+        function togglePhishingScanner() {
+            document.getElementById('phishing-modal').style.display = 'block';
+            speak("Cyber-threat scanner online. Awaiting data input.");
+        }
+
+        async function runPhishingScan() {
+            const inputEl = document.getElementById('phishing-input');
+            let input = inputEl.value.replace('[SAFE]\n', '').replace('[THREAT DETECTED]\n', '').trim();
+            if(!input) {
+                speak("No data provided for scan.");
+                return;
+            }
+            
+            const dropzone = document.getElementById('phishing-dropzone-container');
+            const laser = document.getElementById('phishing-laser');
+            
+            laser.style.display = 'block';
+            inputEl.style.opacity = '0.5';
+            speak("Scanning for malicious signatures and phishing vectors.");
+            
+            dropzone.style.borderColor = '#00ffff';
+            dropzone.style.backgroundColor = 'rgba(0,255,255,0.05)';
+            inputEl.style.color = '#00ffff';
+            
+            const prompt = `You are a strict cybersecurity AI. Analyze this text or URL for phishing, scams, or malware vectors. Output EXACTLY ONE WORD: "THREAT" if it is suspicious, malicious, a scam, or phishing. Output "SAFE" if it is entirely benign. Output ONLY the word. Data: ${input}`;
+            
+            try {
+                const res = await fetch('/api/chat', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ message: prompt })
+                });
+                const data = await res.json();
+                let verdict = data.reply ? data.reply.trim().toUpperCase() : 'UNKNOWN';
+                
+                laser.style.display = 'none';
+                inputEl.style.opacity = '1';
+                
+                verdict = verdict.replace(/[^A-Z]/g, '');
+                
+                if (verdict.includes('THREAT')) {
+                    dropzone.style.borderColor = '#ff0033';
+                    dropzone.style.backgroundColor = 'rgba(255,0,51,0.1)';
+                    inputEl.style.color = '#ff0033';
+                    speak("Warning. Malicious payload detected. Do not click.");
+                    inputEl.value = "[THREAT DETECTED]\n" + input;
+                } else {
+                    dropzone.style.borderColor = '#00ff88';
+                    dropzone.style.backgroundColor = 'rgba(0,255,136,0.1)';
+                    inputEl.style.color = '#00ff88';
+                    speak("Scan complete. Data appears safe.");
+                    inputEl.value = "[SAFE]\n" + input;
+                }
+            } catch(e) {
+                laser.style.display = 'none';
+                inputEl.style.opacity = '1';
+                speak("Scan failed. Backend unreachable.");
+            }
+        }
+
         // Initialize features on load
         window.addEventListener('load', () => {
             loadStockData();
+            if (browserTabs.length === 0) {
+                addNewBrowserTab('https://wikipedia.org');
+            }
             loadSchedule();
             loadHolograms();
             renderARNotes();
             renderContextReminders();
+
+            // Setup Phishing Scanner Drag & Drop
+            const scanDrop = document.getElementById('phishing-input');
+            if(scanDrop) {
+                scanDrop.addEventListener('dragover', (e) => { e.preventDefault(); scanDrop.style.background = 'rgba(0,255,255,0.2)'; });
+                scanDrop.addEventListener('dragleave', (e) => { e.preventDefault(); scanDrop.style.background = 'transparent'; });
+                scanDrop.addEventListener('drop', (e) => {
+                    e.preventDefault();
+                    scanDrop.style.background = 'transparent';
+                    if(e.dataTransfer.items) {
+                        for(let i=0; i<e.dataTransfer.items.length; i++) {
+                            if(e.dataTransfer.items[i].kind === 'string') {
+                                e.dataTransfer.items[i].getAsString(s => { scanDrop.value = s; });
+                            }
+                        }
+                    }
+                });
+            }
         });
     </script>
 </body>
