@@ -5871,7 +5871,7 @@
             const prompt = `You are a strict cybersecurity AI. Analyze this text or URL for phishing, scams, or malware vectors. Output EXACTLY ONE WORD: "THREAT" if it is suspicious, malicious, a scam, or phishing. Output "SAFE" if it is entirely benign. Output ONLY the word. Data: ${input}`;
             
             try {
-                const res = await fetch('/api/chat', {
+                const res = await fetch('/api/ai', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ message: prompt })
