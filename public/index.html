@@ -1124,6 +1124,18 @@
     <!-- AR Notes Container -->
     <div id="ar-notes-container" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 50;"></div>
 
+    <!-- GODS EYE UI (Phase 3) -->
+    <div id="gods-eye-ui" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,5,10,0.95); z-index:200; backdrop-filter:blur(10px); padding:30px; font-family:'Rajdhani', sans-serif;">
+        <i class="fas fa-times" style="position:absolute; top:20px; right:30px; font-size:30px; color:#ff0033; cursor:pointer;" onclick="closeGodsEye()"></i>
+        
+        <h1 style="font-family:'Orbitron'; color:#ff0033; text-align:center; font-size:40px; margin-bottom:10px; text-shadow:0 0 15px #ff0033;"><i class="fas fa-satellite-dish"></i> GOD'S EYE PROTOCOL</h1>
+        <p style="text-align:center; color:#ff8888; margin-bottom:30px; font-size:18px; letter-spacing: 2px;">GLOBAL SURVEILLANCE NETWORK ACTIVE</p>
+
+        <div id="gods-eye-grid" style="display:grid; grid-template-columns:1fr 1fr; gap:20px; max-width:1600px; margin:0 auto; height:calc(100% - 150px);">
+            <!-- Iframes injected here via JS to save memory -->
+        </div>
+    </div>
+
     <!-- MARKET UI (Phase 2) -->
     <div id="market-ui" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:var(--dark-bg); z-index:200; overflow-y:auto; padding:30px; font-family:'Rajdhani', sans-serif;">
         <i class="fas fa-times" style="position:absolute; top:20px; right:30px; font-size:30px; color:var(--primary-blue); cursor:pointer;" onclick="closeMarket()"></i>
@@ -1262,6 +1274,11 @@
         <div class="feature-item" onclick="openMarket()" style="cursor: pointer; border: 1px solid #00ff88; margin-top: 10px; background: rgba(0,255,136,0.05);">
             <h3 style="color: #00ff88;"><i class="fas fa-chart-line"></i> Global Market Feed</h3>
             <p>Live ticker tracking for US and Indian stock exchanges.</p>
+        </div>
+
+        <div class="feature-item" onclick="openGodsEye()" style="cursor: pointer; border: 1px solid #ff0033; margin-top: 10px; background: rgba(255,0,51,0.05);">
+            <h3 style="color: #ff0033;"><i class="fas fa-satellite-dish"></i> God's Eye</h3>
+            <p>Global surveillance protocol with memory-purge streaming.</p>
         </div>
 
         <div class="feature-item" onclick="document.getElementById('hologram-library-panel').style.display = document.getElementById('hologram-library-panel').style.display === 'none' ? 'block' : 'none';" style="cursor: pointer; border: 1px solid var(--primary-blue); margin-top: 10px; background: rgba(0,212,255,0.05);">
@@ -2937,6 +2954,15 @@
                     closeMarket();
                 } else {
                     openMarket();
+                }
+                return;
+            }
+
+            if (query.includes("god's eye") || query.includes("gods eye") || query.includes("surveillance") || query.includes("cameras")) {
+                if (query.includes("close") || query.includes("hide") || query.includes("deactivate")) {
+                    closeGodsEye();
+                } else {
+                    openGodsEye();
                 }
                 return;
             }
@@ -5490,6 +5516,46 @@
                     </div>
                 `;
             });
+        }
+
+        // --- GOD'S EYE (Phase 3) ---
+        const godsEyeFeeds = [
+            'https://www.youtube.com/embed/1eiCMApnGcE?autoplay=1&mute=1&controls=0', // ISS
+            'https://www.youtube.com/embed/1-iS7LmhUaA?autoplay=1&mute=1&controls=0', // Times Square
+            'https://www.youtube.com/embed/sL6h0Y5Ue5k?autoplay=1&mute=1&controls=0', // Tokyo
+            'https://www.youtube.com/embed/9Auq9mYxFEE?autoplay=1&mute=1&controls=0'  // Venice Beach
+        ];
+
+        function openGodsEye() {
+            document.getElementById('gods-eye-ui').style.display = 'block';
+            speak("God's Eye Protocol activated. Accessing global surveillance network.");
+            
+            const grid = document.getElementById('gods-eye-grid');
+            grid.innerHTML = ''; // Ensure clean slate
+            
+            // Dynamically create iframes to prevent memory drain when closed
+            godsEyeFeeds.forEach(url => {
+                const wrapper = document.createElement('div');
+                wrapper.style.border = '2px solid #ff0033';
+                wrapper.style.boxShadow = '0 0 15px rgba(255,0,51,0.3)';
+                wrapper.style.position = 'relative';
+                wrapper.style.backgroundColor = '#000';
+                wrapper.style.borderRadius = '5px';
+                wrapper.style.overflow = 'hidden';
+                
+                wrapper.innerHTML = `
+                    <div style="position:absolute; top:10px; left:10px; color:#ff0033; font-family:'Orbitron'; font-size:14px; background:rgba(0,0,0,0.7); padding:2px 8px; border:1px solid #ff0033; z-index:10; border-radius:3px;">● LIVE REC</div>
+                    <iframe src="${url}" style="width:100%; height:100%; border:none;" allow="autoplay; encrypted-media"></iframe>
+                `;
+                grid.appendChild(wrapper);
+            });
+        }
+
+        function closeGodsEye() {
+            document.getElementById('gods-eye-ui').style.display = 'none';
+            // CRITICAL MEMORY PURGE: Destroy iframes to prevent RAM bloat
+            document.getElementById('gods-eye-grid').innerHTML = '';
+            speak("Surveillance feed disconnected.");
         }
 
         // Initialize features on load
