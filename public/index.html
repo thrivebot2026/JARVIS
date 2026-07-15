@@ -1173,6 +1173,27 @@
             <h3><i class="fas fa-glass-cheers"></i> House Party Protocol</h3>
             <p>Unleash a chaotic sequence of music, flashing lights, and mass UI spawns.</p>
         </div>
+
+        <div class="feature-item" onclick="document.getElementById('hologram-library-panel').style.display = document.getElementById('hologram-library-panel').style.display === 'none' ? 'block' : 'none';" style="cursor: pointer; border: 1px solid var(--primary-blue); margin-top: 10px; background: rgba(0,212,255,0.05);">
+            <h3 style="color: var(--primary-blue);"><i class="fas fa-cube"></i> 3D Hologram Library</h3>
+            <p>Access and preview available 3D projections.</p>
+        </div>
+        
+        <!-- Nested Hologram Library -->
+        <div id="hologram-library-panel" style="display: none; padding: 10px; border-left: 2px solid var(--primary-blue); margin: 10px 0;">
+            <div class="library-item" onclick="openHologram('globe')" style="padding: 10px; border: 1px solid rgba(0, 212, 255, 0.3); margin-bottom: 5px; cursor: pointer; transition: 0.2s;" onmouseover="this.style.background='rgba(0,212,255,0.1)'" onmouseout="this.style.background='transparent'">
+                <h4 style="margin-bottom: 5px; font-family: 'Orbitron', sans-serif;"><i class="fas fa-globe"></i> Global Threat Map</h4>
+                <p style="font-size: 0.8em; opacity: 0.7;">"Render globe" | "Open global map"</p>
+            </div>
+            <div class="library-item" onclick="openHologram('core')" style="padding: 10px; border: 1px solid rgba(0, 212, 255, 0.3); margin-bottom: 5px; cursor: pointer; transition: 0.2s;" onmouseover="this.style.background='rgba(0,212,255,0.1)'" onmouseout="this.style.background='transparent'">
+                <h4 style="margin-bottom: 5px; font-family: 'Orbitron', sans-serif;"><i class="fas fa-atom"></i> Arc Reactor Core</h4>
+                <p style="font-size: 0.8em; opacity: 0.7;">"Render arc reactor" | "Show geometric core"</p>
+            </div>
+            <div class="library-item" onclick="openHologram('dna')" style="padding: 10px; border: 1px solid rgba(0, 212, 255, 0.3); margin-bottom: 5px; cursor: pointer; transition: 0.2s;" onmouseover="this.style.background='rgba(0,212,255,0.1)'" onmouseout="this.style.background='transparent'">
+                <h4 style="margin-bottom: 5px; font-family: 'Orbitron', sans-serif;"><i class="fas fa-dna"></i> DNA Helix</h4>
+                <p style="font-size: 0.8em; opacity: 0.7;">"Render DNA" | "Show molecular structure"</p>
+            </div>
+        </div>
     </div>
     <div class="main-feature-toggle" id="main-feature-toggle" onclick="toggleMainFeatureDrawer()">
         <i class="fas fa-chevron-left" id="main-feature-icon"></i>
@@ -2539,12 +2560,15 @@
             }
 
             // --- 3D HOLOGRAM PROTOCOL ---
-            if (query.includes("render 3d") || query.includes("hologram") || query.includes("open global map") || query.includes("render globe")) {
+            if (query.includes("render 3d") || query.includes("hologram") || query.includes("open global map") || query.includes("render globe") || query.includes("arc reactor") || query.includes("render dna") || query.includes("molecular structure") || query.includes("geometric core")) {
                 if (query.includes("close") || query.includes("stop")) {
                     closeHologram();
                     speak("Hologram dismissed.");
                 } else {
-                    openHologram();
+                    let type = 'globe';
+                    if (query.includes("arc reactor") || query.includes("geometric core") || query.includes("core")) type = 'core';
+                    if (query.includes("dna") || query.includes("molecular structure")) type = 'dna';
+                    openHologram(type);
                 }
                 return;
             }
@@ -4407,13 +4431,24 @@
         }
 
         // --- 3D HOLOGRAM LOGIC ---
-        let scene, camera, renderer, globe, innerGlobe, particles;
+        let scene, camera, renderer, holoObjects = [], particles;
         let hologramActive = false;
+        let holoAnimId = null;
+        let hlMouseX = 0, hlMouseY = 0;
         
-        function initHologram() {
-            if (scene) return; // already initialized
-            
+        document.addEventListener('mousemove', (event) => {
+            if(!hologramActive) return;
+            hlMouseX = (event.clientX / window.innerWidth) * 2 - 1;
+            hlMouseY = -(event.clientY / window.innerHeight) * 2 + 1;
+        });
+
+        function initHologram(type = 'globe') {
             const container = document.getElementById('hologram-container');
+            
+            // Clean up previous instance
+            if (holoAnimId) cancelAnimationFrame(holoAnimId);
+            const existingCanvas = container.querySelector('canvas');
+            if (existingCanvas) existingCanvas.remove();
             
             scene = new THREE.Scene();
             camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
@@ -4423,22 +4458,54 @@
             renderer.setSize(window.innerWidth, window.innerHeight);
             container.appendChild(renderer.domElement);
             
-            // Wireframe Globe
-            const geometry = new THREE.SphereGeometry(2, 32, 32);
-            const material = new THREE.MeshBasicMaterial({ 
-                color: 0x00d4ff, 
-                wireframe: true, 
-                transparent: true, 
-                opacity: 0.3 
-            });
-            globe = new THREE.Mesh(geometry, material);
-            scene.add(globe);
+            holoObjects = [];
+            
+            if (type === 'globe') {
+                const geometry = new THREE.SphereGeometry(2, 32, 32);
+                const material = new THREE.MeshBasicMaterial({ color: 0x00d4ff, wireframe: true, transparent: true, opacity: 0.3 });
+                const globe = new THREE.Mesh(geometry, material);
+                globe.userData = { rotY: 0.005, rotX: 0.002 };
+                scene.add(globe);
+                holoObjects.push(globe);
 
-            // Core Solid Inner Globe
-            const innerGeo = new THREE.SphereGeometry(1.8, 16, 16);
-            const innerMat = new THREE.MeshBasicMaterial({ color: 0x003366, transparent: true, opacity: 0.8 });
-            innerGlobe = new THREE.Mesh(innerGeo, innerMat);
-            scene.add(innerGlobe);
+                const innerGeo = new THREE.SphereGeometry(1.8, 16, 16);
+                const innerMat = new THREE.MeshBasicMaterial({ color: 0x003366, transparent: true, opacity: 0.8 });
+                const innerGlobe = new THREE.Mesh(innerGeo, innerMat);
+                innerGlobe.userData = { rotY: -0.003, rotX: 0 };
+                scene.add(innerGlobe);
+                holoObjects.push(innerGlobe);
+                
+            } else if (type === 'core') {
+                const geometry = new THREE.IcosahedronGeometry(2, 0);
+                const material = new THREE.MeshBasicMaterial({ color: 0x00d4ff, wireframe: true });
+                const core = new THREE.Mesh(geometry, material);
+                core.userData = { rotY: 0.01, rotX: 0.01 };
+                scene.add(core);
+                holoObjects.push(core);
+                
+                const geo2 = new THREE.OctahedronGeometry(1.5, 0);
+                const mat2 = new THREE.MeshBasicMaterial({ color: 0xffaa00, wireframe: true });
+                const innerCore = new THREE.Mesh(geo2, mat2);
+                innerCore.userData = { rotY: -0.02, rotX: -0.01 };
+                scene.add(innerCore);
+                holoObjects.push(innerCore);
+                
+            } else if (type === 'dna') {
+                const dnaGeo = new THREE.BufferGeometry();
+                const points = [];
+                for(let i=0; i<100; i++) {
+                    const y = (i - 50) * 0.1;
+                    const r = 1.5;
+                    points.push(Math.sin(i * 0.2) * r, y, Math.cos(i * 0.2) * r);
+                    points.push(Math.sin(i * 0.2 + Math.PI) * r, y, Math.cos(i * 0.2 + Math.PI) * r);
+                }
+                dnaGeo.setAttribute('position', new THREE.Float32BufferAttribute(points, 3));
+                const dnaMat = new THREE.PointsMaterial({ size: 0.1, color: 0x00ff88 });
+                const dna = new THREE.Points(dnaGeo, dnaMat);
+                dna.userData = { rotY: 0.02, rotX: 0 };
+                scene.add(dna);
+                holoObjects.push(dna);
+            }
             
             // Particle Data Cloud
             const partGeo = new THREE.BufferGeometry();
@@ -4448,25 +4515,21 @@
                 posArray[i] = (Math.random() - 0.5) * 10;
             }
             partGeo.setAttribute('position', new THREE.BufferAttribute(posArray, 3));
-            const partMat = new THREE.PointsMaterial({ size: 0.05, color: 0x00d4ff });
+            let pColor = 0x00d4ff;
+            if (type === 'core') pColor = 0xffaa00;
+            if (type === 'dna') pColor = 0x00ff88;
+            const partMat = new THREE.PointsMaterial({ size: 0.05, color: pColor });
             particles = new THREE.Points(partGeo, partMat);
             scene.add(particles);
-            
-            // Mouse Interaction
-            let hlMouseX = 0, hlMouseY = 0;
-            document.addEventListener('mousemove', (event) => {
-                if(!hologramActive) return;
-                hlMouseX = (event.clientX / window.innerWidth) * 2 - 1;
-                hlMouseY = -(event.clientY / window.innerHeight) * 2 + 1;
-            });
 
             const animate = function () {
-                requestAnimationFrame(animate);
+                holoAnimId = requestAnimationFrame(animate);
                 if (!hologramActive) return;
                 
-                globe.rotation.y += 0.005;
-                globe.rotation.x += 0.002;
-                innerGlobe.rotation.y -= 0.003;
+                holoObjects.forEach(obj => {
+                    obj.rotation.y += obj.userData.rotY;
+                    obj.rotation.x += obj.userData.rotX;
+                });
                 particles.rotation.y += 0.001;
                 
                 // Parallax based on mouse
@@ -4486,11 +4549,11 @@
             });
         }
         
-        function openHologram() {
+        function openHologram(type = 'globe') {
             document.getElementById('hologram-container').style.display = 'block';
             hologramActive = true;
-            initHologram();
-            speak("3D Hologram rendered, Sir.");
+            initHologram(type);
+            speak(`3D Hologram rendered, Sir.`);
         }
         
         function closeHologram() {
