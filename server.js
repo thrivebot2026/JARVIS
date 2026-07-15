@@ -89,6 +89,11 @@ app.post('/api/ai', async (req, res) => {
     if (req.body.memories && Array.isArray(req.body.memories) && req.body.memories.length > 0) {
         SYSTEM_PROMPT += "\n\nUSER'S LONG-TERM MEMORY DATABASE:\n" + req.body.memories.map(m => "- " + m).join("\n");
     }
+    
+    if (req.body.isNotepadOp) {
+        SYSTEM_PROMPT = "You are an automated Markdown-to-HTML parser. Ignore all personality, chat instructions, character limits, and language tags. Output ONLY raw, unstyled HTML (e.g. <ul>, <li>, <strong>). Do not include ```html or any backticks. Do not include a conversational reply.";
+    }
+
     if (isTraining) {
         SYSTEM_PROMPT = `You are JARVIS, functioning in Multilingual Language Trainer Mode.
 Your goal is to teach the user a language of their choice in a fun, step-by-step, interactive way.
@@ -629,9 +634,21 @@ Return ONLY valid JSON. Do not include markdown blocks or any other text. Assume
         });
         
         const reply = completion.choices[0]?.message?.content || "";
-        const jsonStr = reply.replace(/```json/gi, '').replace(/```/g, '').trim();
-        const parsed = JSON.parse(jsonStr);
-        return res.json(parsed);
+        let jsonStr = reply;
+        const startIndex = reply.indexOf('{');
+        const endIndex = reply.lastIndexOf('}');
+        if (startIndex !== -1 && endIndex !== -1) {
+            jsonStr = reply.substring(startIndex, endIndex + 1);
+        } else {
+            jsonStr = '{"events":[]}'; // fallback
+        }
+        
+        try {
+            const parsed = JSON.parse(jsonStr);
+            return res.json(parsed);
+        } catch (e) {
+            return res.json({ events: [] });
+        }
     } catch (error) {
         console.error("Parse Schedule Error:", error);
         return res.status(500).json({ error: "Failed to parse schedule" });
