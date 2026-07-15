@@ -679,11 +679,16 @@ app.get('/api/market', async (req, res) => {
             const data = await yfRes.json();
             if (data && data.chart && data.chart.result && data.chart.result.length > 0) {
                 const meta = data.chart.result[0].meta;
+                const price = Number(meta.regularMarketPrice) || 0;
+                const prev = Number(meta.previousClose || meta.chartPreviousClose) || price;
+                const change = price - prev;
+                const changePercent = prev !== 0 ? (change / prev) * 100 : 0;
+                
                 results[sym] = {
-                    price: meta.regularMarketPrice,
-                    prevClose: meta.previousClose,
-                    change: (meta.regularMarketPrice - meta.previousClose).toFixed(2),
-                    changePercent: (((meta.regularMarketPrice - meta.previousClose) / meta.previousClose) * 100).toFixed(2)
+                    price: price,
+                    prevClose: prev,
+                    change: change.toFixed(2),
+                    changePercent: changePercent.toFixed(2)
                 };
             }
         } catch (e) {
