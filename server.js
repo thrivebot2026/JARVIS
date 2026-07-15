@@ -599,6 +599,45 @@ app.get('/api/youtube', async (req, res) => {
     }
 });
 
+// Endpoint: Parse Schedule AI
+app.post('/api/parse-schedule', async (req, res) => {
+    try {
+        const text = req.body.text;
+        if (!text) return res.status(400).json({ error: "No text provided" });
+        
+        const systemPrompt = `You are JARVIS's scheduling AI. The user will provide a messy description of their schedule.
+Your job is to parse it and return PURE JSON matching this exact structure:
+{
+  "events": [
+    {
+      "title": "Short event name",
+      "desc": "Short description or participants",
+      "start": 14.5, // Start time in 24-hour float format (e.g. 2:30 PM is 14.5)
+      "end": 15.5   // End time in 24-hour float format
+    }
+  ]
+}
+Return ONLY valid JSON. Do not include markdown blocks or any other text. Assume today if no day is specified. Hours must be between 8.0 and 23.0.`;
+
+        const completion = await groq.chat.completions.create({
+            messages: [
+                { role: "system", content: systemPrompt },
+                { role: "user", content: text }
+            ],
+            model: "llama3-8b-8192",
+            temperature: 0.1
+        });
+        
+        const reply = completion.choices[0]?.message?.content || "";
+        const jsonStr = reply.replace(/```json/gi, '').replace(/```/g, '').trim();
+        const parsed = JSON.parse(jsonStr);
+        return res.json(parsed);
+    } catch (error) {
+        console.error("Parse Schedule Error:", error);
+        return res.status(500).json({ error: "Failed to parse schedule" });
+    }
+});
+
 const PORT = process.env.PORT || 3000;
 
 if (process.env.NODE_ENV !== 'production') {

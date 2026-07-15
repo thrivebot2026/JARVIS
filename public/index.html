@@ -6,7 +6,7 @@
     <title>JARVIS | Core Interface</title>
     <link rel="icon" type="image/png" href="/favicon.png">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
-    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Rajdhani:wght@300;500;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Rajdhani:wght@300;500;700&family=Caveat:wght@400;700&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 
@@ -1212,6 +1212,14 @@
             <h3 style="color: var(--primary-blue);"><i class="fas fa-chalkboard"></i> Virtual Chalkboard</h3>
             <p>Open an interactive digital chalkboard.</p>
         </div>
+        <div class="feature-item" onclick="openNotepad()" style="cursor: pointer; border: 1px solid var(--primary-blue); margin-top: 10px;">
+            <h3 style="color: var(--primary-blue);"><i class="fas fa-book-open"></i> Brain Dump Notepad</h3>
+            <p>Voice-to-text organized notes.</p>
+        </div>
+        <div class="feature-item" onclick="openCalendar()" style="cursor: pointer; border: 1px solid var(--primary-blue); margin-top: 10px;">
+            <h3 style="color: var(--primary-blue);"><i class="fas fa-calendar-alt"></i> Schedule Optimizer</h3>
+            <p>AI-managed day planner.</p>
+        </div>
     </div>
     <div class="main-feature-toggle" id="main-feature-toggle" onclick="toggleMainFeatureDrawer()">
         <i class="fas fa-chevron-left" id="main-feature-icon"></i>
@@ -1521,6 +1529,59 @@
         }
         #chalk-close { right: 20px; }
         #chalk-clear { right: 120px; }
+
+        /* NOTEPAD CSS */
+        #notepad-container {
+            position: fixed; top: 10%; left: 50%; transform: translateX(-50%);
+            width: 80%; max-width: 800px; height: 80%; background: #fdf6e3;
+            box-shadow: 0 0 30px rgba(0,0,0,0.8), 0 0 10px rgba(255,255,255,0.2);
+            z-index: 10020; display: none; border-radius: 5px; overflow: hidden;
+            color: #333; font-family: 'Caveat', cursive; font-size: 26px;
+        }
+        #notepad-toolbar {
+            background: #e9e0c9; padding: 10px; border-bottom: 2px solid #dcd3ba;
+            display: flex; gap: 10px; align-items: center; font-family: 'Rajdhani', sans-serif;
+        }
+        #notepad-toolbar button {
+            padding: 5px 15px; border: 1px solid #ccc; background: #fff; cursor: pointer; border-radius: 3px; font-weight: bold;
+        }
+        #notepad-toolbar button.ai-btn { background: #00d4ff; color: #fff; border: none; text-shadow: none; }
+        #notepad-editor {
+            width: 100%; height: calc(100% - 50px); padding: 40px 50px; overflow-y: auto;
+            background-image: linear-gradient(transparent 95%, #cbd5e1 5%); background-size: 100% 40px; line-height: 40px;
+            outline: none;
+        }
+        #notepad-editor ul, #notepad-editor ol { padding-left: 40px; }
+
+        /* CALENDAR CSS */
+        #calendar-container {
+            position: fixed; top: 10%; left: 50%; transform: translateX(-50%);
+            width: 90%; max-width: 1000px; height: 80%; background: rgba(2, 5, 10, 0.95);
+            border: 2px solid var(--primary-blue); box-shadow: var(--glow);
+            z-index: 10030; display: none; flex-direction: column;
+            backdrop-filter: blur(10px); color: #fff; font-family: 'Rajdhani', sans-serif;
+        }
+        #calendar-header {
+            padding: 15px; border-bottom: 1px solid rgba(0,212,255,0.3);
+            display: flex; justify-content: space-between; align-items: center; background: rgba(0,212,255,0.05);
+        }
+        #calendar-header input[type="date"] {
+            background: transparent; border: 1px solid var(--primary-blue); color: #fff; padding: 5px; font-family: 'Orbitron'; font-size: 16px;
+        }
+        #calendar-body {
+            display: flex; flex: 1; overflow-y: auto; position: relative;
+        }
+        #calendar-times {
+            width: 80px; border-right: 1px solid rgba(0,212,255,0.2); background: rgba(2,5,10,0.8);
+        }
+        .time-slot { height: 60px; border-bottom: 1px dashed rgba(255,255,255,0.1); text-align: center; font-size: 0.8em; color: rgba(255,255,255,0.5); padding-top: 5px; box-sizing: border-box; }
+        #calendar-grid { flex: 1; position: relative; background: repeating-linear-gradient(to bottom, transparent, transparent 59px, rgba(255,255,255,0.05) 60px); }
+        .cal-event {
+            position: absolute; left: 10px; right: 10px; background: rgba(0,212,255,0.2); border-left: 4px solid var(--primary-blue);
+            border-radius: 4px; padding: 5px 10px; font-size: 0.9em; overflow: hidden; cursor: pointer; transition: 0.2s; box-sizing: border-box;
+        }
+        .cal-event:hover { background: rgba(0,212,255,0.4); }
+        .cal-event strong { font-family: 'Orbitron'; display: block; margin-bottom: 3px; }
     </style>
     <div id="mark42-container">
         <img src="/assets/mark42_helmet.png" class="armor-piece" id="armor-head" style="top: -300px; left: 50%; transform: translateX(-50%); width: 150px;">
@@ -1553,6 +1614,39 @@
         <button class="chalk-btn" id="chalk-clear" onclick="clearChalkboard()">CLEAR</button>
         <button class="chalk-btn" id="chalk-close" onclick="closeChalkboard()">CLOSE</button>
         <canvas id="chalkboard-canvas"></canvas>
+    </div>
+
+    <!-- Notepad Modal -->
+    <div id="notepad-container">
+        <div id="notepad-toolbar">
+            <button onclick="document.execCommand('bold',false,null)"><i class="fas fa-bold"></i></button>
+            <button onclick="document.execCommand('italic',false,null)"><i class="fas fa-italic"></i></button>
+            <button onclick="document.execCommand('insertUnorderedList',false,null)"><i class="fas fa-list-ul"></i></button>
+            <input type="color" onchange="document.execCommand('foreColor', false, this.value)" title="Color">
+            <button class="ai-btn" onclick="organizeNotepadAI()"><i class="fas fa-magic"></i> AI Organize</button>
+            <div style="flex:1"></div>
+            <button onclick="closeNotepad()"><i class="fas fa-times"></i></button>
+        </div>
+        <div id="notepad-editor" contenteditable="true" oninput="saveNotepad()"></div>
+    </div>
+
+    <!-- Calendar Modal -->
+    <div id="calendar-container">
+        <div id="calendar-header">
+            <div>
+                <h2 style="font-family:'Orbitron'; color:var(--primary-blue); display:inline-block; margin-right:20px;">IRON PLANNER</h2>
+                <input type="date" id="cal-date-picker" onchange="loadCalendarEvents()">
+            </div>
+            <div>
+                <input type="text" id="cal-ai-input" placeholder="e.g., 'Math at 4pm for 1hr'" style="background:transparent; border:1px solid rgba(0,212,255,0.5); color:#fff; padding:5px 10px; width:300px; font-family:'Rajdhani';">
+                <button onclick="processCalendarAI()" style="background:var(--primary-blue); color:#fff; border:none; padding:6px 15px; cursor:pointer; font-weight:bold;">Optimize</button>
+                <button onclick="closeCalendar()" style="background:transparent; border:1px solid #ff3333; color:#ff3333; padding:5px 10px; margin-left:10px; cursor:pointer;"><i class="fas fa-times"></i></button>
+            </div>
+        </div>
+        <div id="calendar-body">
+            <div id="calendar-times"></div>
+            <div id="calendar-grid"></div>
+        </div>
     </div>
 
     <!-- YouTube IFrame API -->
@@ -2620,7 +2714,7 @@
                 return;
             }
 
-            // --- TUTOR PROTOCOL & CHALKBOARD ---
+            // --- TUTOR PROTOCOL, CHALKBOARD, NOTEPAD, CALENDAR ---
             if (query.includes("tutor mode") || query.includes("tutor protocol") || query.includes("student mode")) {
                 toggleTutorMode();
                 return;
@@ -2634,6 +2728,22 @@
                     speak("Chalkboard cleared.");
                 } else {
                     openChalkboard();
+                }
+                return;
+            }
+            if (query.includes("notepad") || query.includes("brain dump") || query.includes("notes")) {
+                if (query.includes("close") || query.includes("hide")) {
+                    closeNotepad();
+                } else {
+                    openNotepad();
+                }
+                return;
+            }
+            if (query.includes("schedule") || query.includes("planner") || query.includes("calendar")) {
+                if (query.includes("close") || query.includes("hide")) {
+                    closeCalendar();
+                } else {
+                    openCalendar();
                 }
                 return;
             }
@@ -4709,6 +4819,119 @@
             } else {
                 document.body.classList.remove('tutor-mode');
                 speak("Tutor Protocol deactivated. Returning to standard operative mode.");
+            }
+        }
+
+        // --- NOTEPAD LOGIC ---
+        function openNotepad() {
+            document.getElementById('notepad-container').style.display = 'block';
+            document.getElementById('notepad-editor').innerHTML = localStorage.getItem('jarvis_braindump') || '';
+            speak("Notepad initialized, Sir.");
+        }
+        function closeNotepad() {
+            document.getElementById('notepad-container').style.display = 'none';
+            saveNotepad();
+        }
+        function saveNotepad() {
+            localStorage.setItem('jarvis_braindump', document.getElementById('notepad-editor').innerHTML);
+        }
+        async function organizeNotepadAI() {
+            const editor = document.getElementById('notepad-editor');
+            const text = editor.innerText;
+            if (!text.trim()) { speak("The notepad is empty, Sir."); return; }
+            speak("Organizing your thoughts, Sir.");
+            const payload = {
+                message: "Organize this brain dump into a clean HTML formatted list (use <ul>, <li>, <strong>). DO NOT use markdown, output pure raw HTML ONLY. Text: " + text,
+                tutorMode: false,
+                isNotepadOp: true
+            };
+            try {
+                const res = await fetch('/api/ai', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                const data = await res.json();
+                let newHtml = data.reply.replace(/```html/gi, '').replace(/```/g, '').trim();
+                editor.innerHTML = newHtml;
+                saveNotepad();
+                speak("Notes organized.");
+            } catch (e) {
+                speak("Failed to organize notes.");
+            }
+        }
+
+        // --- CALENDAR LOGIC ---
+        let calendarData = JSON.parse(localStorage.getItem('jarvis_calendar') || '{}');
+        
+        function openCalendar() {
+            document.getElementById('calendar-container').style.display = 'flex';
+            if (!document.getElementById('cal-date-picker').value) {
+                document.getElementById('cal-date-picker').valueAsDate = new Date();
+            }
+            initCalendarGrid();
+            loadCalendarEvents();
+            speak("Schedule retrieved, Sir.");
+        }
+        function closeCalendar() { document.getElementById('calendar-container').style.display = 'none'; }
+        
+        function initCalendarGrid() {
+            const timesDiv = document.getElementById('calendar-times');
+            if (timesDiv.innerHTML !== "") return; // already initialized
+            for(let i=8; i<=22; i++) {
+                let div = document.createElement('div');
+                div.className = 'time-slot';
+                div.innerText = i <= 12 ? (i===12 ? '12 PM' : i+' AM') : (i-12)+' PM';
+                timesDiv.appendChild(div);
+            }
+        }
+        
+        function loadCalendarEvents() {
+            const grid = document.getElementById('calendar-grid');
+            grid.innerHTML = ''; // clear current blocks
+            const date = document.getElementById('cal-date-picker').value;
+            const events = calendarData[date] || [];
+            
+            events.forEach(ev => {
+                // ev.start and ev.end should be in 24hr format float e.g. 14.5 for 2:30 PM
+                const startHour = Math.max(8, ev.start); 
+                const endHour = Math.min(23, ev.end);
+                if (startHour >= 23 || endHour <= 8) return;
+                
+                const top = (startHour - 8) * 60;
+                const height = (endHour - startHour) * 60;
+                
+                let block = document.createElement('div');
+                block.className = 'cal-event';
+                block.style.top = top + 'px';
+                block.style.height = height + 'px';
+                block.innerHTML = `<strong>${ev.title}</strong><span>${ev.desc || ''}</span>`;
+                grid.appendChild(block);
+            });
+        }
+        
+        async function processCalendarAI() {
+            const input = document.getElementById('cal-ai-input').value;
+            if (!input) return;
+            const date = document.getElementById('cal-date-picker').value;
+            speak("Optimizing schedule.");
+            try {
+                const res = await fetch('/api/parse-schedule', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ text: input })
+                });
+                const data = await res.json();
+                if (data.events) {
+                    if (!calendarData[date]) calendarData[date] = [];
+                    calendarData[date] = calendarData[date].concat(data.events);
+                    localStorage.setItem('jarvis_calendar', JSON.stringify(calendarData));
+                    loadCalendarEvents();
+                    document.getElementById('cal-ai-input').value = '';
+                    speak("Schedule updated.");
+                }
+            } catch (e) {
+                speak("Failed to process schedule.");
             }
         }
 
