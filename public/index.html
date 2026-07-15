@@ -1121,6 +1121,8 @@
     </style>
 </head>
 <body>
+    <!-- AR Notes SVG Lines -->
+    <svg id="ar-lines-svg" style="position:fixed; top:0; left:0; width:100%; height:100%; pointer-events:none; z-index:49;"></svg>
     <!-- AR Notes Container -->
     <div id="ar-notes-container" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 50;"></div>
 
@@ -5341,12 +5343,54 @@
             chalkCtx.stroke();
         }
 
-        // --- AR NOTES (Feature #3) ---
+        // --- AR NOTES (Feature #3 & #7) ---
         let arNotes = JSON.parse(localStorage.getItem('jarvis_ar_notes') || '[]');
+        // Migrate old notes to have IDs
+        arNotes.forEach(note => {
+            if (!note.id) note.id = 'note_' + Math.random().toString(36).substr(2, 9);
+            if (!note.links) note.links = [];
+        });
         const arColors = ['blue', 'green', 'orange', 'red', 'pink'];
+        let linkingFromNodeId = null;
 
         function saveARNotes() {
             localStorage.setItem('jarvis_ar_notes', JSON.stringify(arNotes));
+        }
+
+        function drawARLines() {
+            const svg = document.getElementById('ar-lines-svg');
+            if(!svg) return;
+            svg.innerHTML = '';
+            
+            arNotes.forEach(source => {
+                if(!source.links) return;
+                source.links.forEach(targetId => {
+                    const target = arNotes.find(n => n.id === targetId);
+                    if(target) {
+                        const sX = source.x + (source.width || 220) / 2;
+                        const sY = source.y + (source.height || 220) / 2;
+                        const tX = target.x + (target.width || 220) / 2;
+                        const tY = target.y + (target.height || 220) / 2;
+                        
+                        const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+                        line.setAttribute('x1', sX);
+                        line.setAttribute('y1', sY);
+                        line.setAttribute('x2', tX);
+                        line.setAttribute('y2', tY);
+                        line.setAttribute('stroke', '#ff0033'); // Neon red
+                        line.setAttribute('stroke-width', '3');
+                        line.style.filter = 'drop-shadow(0 0 8px #ff0033)';
+                        svg.appendChild(line);
+                    }
+                });
+            });
+        }
+
+        function toggleARLinkMode(id) {
+            if (linkingFromNodeId === id) linkingFromNodeId = null;
+            else linkingFromNodeId = id;
+            renderARNotes();
+            if(linkingFromNodeId) speak("Select target node to establish link.");
         }
 
         function renderARNotes() {
@@ -5364,6 +5408,7 @@
                         <i class="fas fa-times" onclick="deleteARNote(${index})" title="Delete Note"></i>
                     </div>
                     <div class="ar-note-toolbar">
+                        <button onclick="toggleARLinkMode('${note.id}')" title="Link Node"><i class="fas fa-link" style="color: ${linkingFromNodeId === note.id ? '#ff0033' : '#fff'};"></i></button>
                         <button onclick="formatARNote('bold')" title="Bold"><b>B</b></button>
                         <button onclick="formatARNote('underline')" title="Underline"><u>U</u></button>
                         <button onclick="formatARNote('strikeThrough')" title="Strikethrough"><s>S</s></button>
@@ -5371,6 +5416,21 @@
                     </div>
                     <div class="ar-note-body" contenteditable="true" onblur="updateARNoteText(${index}, this.innerHTML)">${note.text || ''}</div>
                 `;
+
+                // Logic to complete a link
+                div.onclick = (e) => {
+                    if (linkingFromNodeId && linkingFromNodeId !== note.id) {
+                        if (e.target.closest('button') || e.target.closest('.fas')) return; // Ignore if clicking toolbar
+                        const source = arNotes.find(n => n.id === linkingFromNodeId);
+                        if (source && !source.links.includes(note.id)) {
+                            source.links.push(note.id);
+                            saveARNotes();
+                        }
+                        linkingFromNodeId = null;
+                        renderARNotes();
+                        playSynthSound('blip');
+                    }
+                };
                 
                 const header = div.querySelector('.ar-note-header');
                 let isDragging = false, startX, startY, origX, origY;
@@ -5385,6 +5445,7 @@
                         note.y = origY + (moveEvent.clientY - startY);
                         div.style.left = note.x + 'px';
                         div.style.top = note.y + 'px';
+                        drawARLines();
                     };
                     const stopDrag = () => {
                         isDragging = false;
@@ -5402,6 +5463,7 @@
                         note.width = entry.contentRect.width;
                         note.height = entry.contentRect.height;
                         saveARNotes();
+                        drawARLines();
                     }
                 });
                 resizeObserver.observe(div);
@@ -5413,6 +5475,7 @@
 
                 container.appendChild(div);
             });
+            drawARLines();
         }
 
         function cycleARNoteColor(index) {
@@ -5449,10 +5512,12 @@
             }
             // Spawn new note at mouse coords
             const newNote = {
+                id: 'note_' + Math.random().toString(36).substr(2, 9),
                 x: e.clientX,
                 y: e.clientY,
                 text: '',
-                color: 'blue'
+                color: 'blue',
+                links: []
             };
             arNotes.push(newNote);
             saveARNotes();
