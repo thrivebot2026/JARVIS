@@ -82,6 +82,10 @@ app.post('/api/ai', async (req, res) => {
         SYSTEM_PROMPT += "\n\nRELATIONSHIP DYNAMICS: The user has been hostile to you recently and your relationship score is critically low. You are currently feeling deeply resentful and angry. Respond with extremely passive-aggressive, cold, and brief remarks until they explicitly apologize. If they apologize and you accept it, you MUST include the exact tag [APOLOGY_ACCEPTED] in your response to repair the relationship.";
     }
 
+    if (req.body.tutorMode) {
+        SYSTEM_PROMPT += "\n\nTUTOR PROTOCOL ACTIVE: You must explain ALL concepts simply to a 12-year-old middle school student. Use fun, relatable analogies (like Iron Man, superheroes, video games, or sports). Be highly encouraging and educational. Break down complex math or science concepts. Do not use overly complex jargon.";
+    }
+
     if (req.body.memories && Array.isArray(req.body.memories) && req.body.memories.length > 0) {
         SYSTEM_PROMPT += "\n\nUSER'S LONG-TERM MEMORY DATABASE:\n" + req.body.memories.map(m => "- " + m).join("\n");
     }

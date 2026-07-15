@@ -2568,7 +2568,28 @@
                     let type = 'globe';
                     if (query.includes("arc reactor") || query.includes("geometric core") || query.includes("core")) type = 'core';
                     if (query.includes("dna") || query.includes("molecular structure")) type = 'dna';
+                    if (query.includes("cylinder")) type = 'cylinder';
+                    if (query.includes("torus") || query.includes("donut")) type = 'torus';
+                    if (query.includes("cell") || query.includes("animal cell")) type = 'cell';
                     openHologram(type);
+                }
+                return;
+            }
+
+            // --- TUTOR PROTOCOL & CHALKBOARD ---
+            if (query.includes("tutor mode") || query.includes("tutor protocol") || query.includes("student mode")) {
+                toggleTutorMode();
+                return;
+            }
+            if (query.includes("chalkboard") || query.includes("chalk board")) {
+                if (query.includes("close") || query.includes("hide")) {
+                    closeChalkboard();
+                    speak("Chalkboard closed.");
+                } else if (query.includes("clear") || query.includes("erase")) {
+                    clearChalkboard();
+                    speak("Chalkboard cleared.");
+                } else {
+                    openChalkboard();
                 }
                 return;
             }
@@ -3232,7 +3253,8 @@
                     image: image,
                     relationshipScore: relationshipScore,
                     memories: JSON.parse(localStorage.getItem('jarvis_memories') || '[]'),
-                    sarcasmOverride: window.sarcasmOverride || false
+                    sarcasmOverride: window.sarcasmOverride || false,
+                    tutorMode: window.tutorMode || false
                 };
                 
                 if (Array.isArray(referenceData)) {
