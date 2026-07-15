@@ -1617,6 +1617,24 @@
     <!-- 3D Hologram Container -->
     <div id="hologram-container">
         <i class="fas fa-times" id="hologram-close" onclick="closeHologram()"></i>
+        <div id="globe-ui" style="display:none; position:absolute; top:0; left:0; width:100%; height:100%; pointer-events:none;">
+            <div style="position:absolute; top:20%; left:10%; color:var(--primary-blue); font-family:'Orbitron'; text-shadow:0 0 10px var(--primary-blue); font-size: 24px;">
+                <h3>NEW YORK</h3>
+                <h4 id="tz-ny" style="font-family:'Rajdhani';">--:--</h4>
+            </div>
+            <div style="position:absolute; top:30%; right:15%; color:var(--primary-blue); font-family:'Orbitron'; text-shadow:0 0 10px var(--primary-blue); font-size: 24px; text-align:right;">
+                <h3>LONDON</h3>
+                <h4 id="tz-lon" style="font-family:'Rajdhani';">--:--</h4>
+            </div>
+            <div style="position:absolute; bottom:30%; left:15%; color:var(--primary-blue); font-family:'Orbitron'; text-shadow:0 0 10px var(--primary-blue); font-size: 24px;">
+                <h3>TOKYO</h3>
+                <h4 id="tz-tokyo" style="font-family:'Rajdhani';">--:--</h4>
+            </div>
+            <div style="position:absolute; bottom:20%; right:10%; color:var(--primary-blue); font-family:'Orbitron'; text-shadow:0 0 10px var(--primary-blue); font-size: 24px; text-align:right;">
+                <h3>SYDNEY</h3>
+                <h4 id="tz-syd" style="font-family:'Rajdhani';">--:--</h4>
+            </div>
+        </div>
     </div>
 
     <!-- Chalkboard Container -->
@@ -2773,6 +2791,14 @@
                     closeCalendar();
                 } else {
                     openCalendar();
+                }
+                return;
+            }
+            if (query.includes("globe") || query.includes("satellite") || query.includes("world map") || query.includes("earth")) {
+                if (query.includes("close") || query.includes("hide")) {
+                    closeHologram();
+                } else {
+                    openHologram('globe');
                 }
                 return;
             }
@@ -4788,11 +4814,22 @@
         
         function openHologram(type = 'globe') {
             document.getElementById('hologram-container').style.display = 'block';
+            const globeUi = document.getElementById('globe-ui');
+            if(globeUi) globeUi.style.display = type === 'globe' ? 'block' : 'none';
             hologramActive = true;
             initHologram(type);
             speak(`3D Hologram rendered, Sir.`);
         }
         
+        setInterval(() => {
+            if (!hologramActive || document.getElementById('globe-ui').style.display === 'none') return;
+            const now = new Date();
+            document.getElementById('tz-ny').innerText = new Intl.DateTimeFormat('en-US', { timeZone: 'America/New_York', timeStyle: 'short' }).format(now);
+            document.getElementById('tz-lon').innerText = new Intl.DateTimeFormat('en-US', { timeZone: 'Europe/London', timeStyle: 'short' }).format(now);
+            document.getElementById('tz-tokyo').innerText = new Intl.DateTimeFormat('en-US', { timeZone: 'Asia/Tokyo', timeStyle: 'short' }).format(now);
+            document.getElementById('tz-syd').innerText = new Intl.DateTimeFormat('en-US', { timeZone: 'Australia/Sydney', timeStyle: 'short' }).format(now);
+        }, 1000);
+
         function closeHologram() {
             document.getElementById('hologram-container').style.display = 'none';
             hologramActive = false;
