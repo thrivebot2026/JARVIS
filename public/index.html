@@ -5472,7 +5472,7 @@
                         <button onclick="formatARNote('strikeThrough')" title="Strikethrough"><s>S</s></button>
                         <button onclick="formatARNote('insertUnorderedList')" title="Bullet List"><i class="fas fa-list-ul"></i></button>
                     </div>
-                    <div class="ar-note-body" contenteditable="true" onblur="updateARNoteText(${index}, this.innerHTML)">${note.text || ''}</div>
+                    <div class="ar-note-body" contenteditable="true" oninput="updateARNoteText(${index}, this.innerHTML)">${note.text || ''}</div>
                 `;
 
                 // Logic to complete a link
@@ -5515,23 +5515,25 @@
                     document.addEventListener('mouseup', stopDrag);
                 });
                 
-                // Track resize
-                const resizeObserver = new ResizeObserver(entries => {
-                    for (let entry of entries) {
-                        note.width = entry.contentRect.width;
-                        note.height = entry.contentRect.height;
-                        saveARNotes();
-                        drawARLines();
-                    }
-                });
-                resizeObserver.observe(div);
-                
                 if (note.width && note.height) {
                     div.style.width = note.width + 'px';
                     div.style.height = note.height + 'px';
                 }
 
                 container.appendChild(div);
+
+                // Track resize (after append so dimensions are valid)
+                const resizeObserver = new ResizeObserver(entries => {
+                    for (let entry of entries) {
+                        if(entry.contentRect.width > 0 && entry.contentRect.height > 0) {
+                            note.width = entry.contentRect.width;
+                            note.height = entry.contentRect.height;
+                            saveARNotes();
+                            drawARLines();
+                        }
+                    }
+                });
+                resizeObserver.observe(div);
             });
             drawARLines();
         }
