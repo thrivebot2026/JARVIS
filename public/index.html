@@ -1193,6 +1193,24 @@
                 <h4 style="margin-bottom: 5px; font-family: 'Orbitron', sans-serif;"><i class="fas fa-dna"></i> DNA Helix</h4>
                 <p style="font-size: 0.8em; opacity: 0.7;">"Render DNA" | "Show molecular structure"</p>
             </div>
+            <div class="library-item" onclick="openHologram('cylinder')" style="padding: 10px; border: 1px solid rgba(0, 212, 255, 0.3); margin-bottom: 5px; cursor: pointer; transition: 0.2s;" onmouseover="this.style.background='rgba(0,212,255,0.1)'" onmouseout="this.style.background='transparent'">
+                <h4 style="margin-bottom: 5px; font-family: 'Orbitron', sans-serif;"><i class="fas fa-database"></i> Geometric Cylinder</h4>
+            </div>
+            <div class="library-item" onclick="openHologram('torus')" style="padding: 10px; border: 1px solid rgba(0, 212, 255, 0.3); margin-bottom: 5px; cursor: pointer; transition: 0.2s;" onmouseover="this.style.background='rgba(0,212,255,0.1)'" onmouseout="this.style.background='transparent'">
+                <h4 style="margin-bottom: 5px; font-family: 'Orbitron', sans-serif;"><i class="fas fa-ring"></i> Torus Knot</h4>
+            </div>
+            <div class="library-item" onclick="openHologram('cell')" style="padding: 10px; border: 1px solid rgba(0, 212, 255, 0.3); margin-bottom: 5px; cursor: pointer; transition: 0.2s;" onmouseover="this.style.background='rgba(0,212,255,0.1)'" onmouseout="this.style.background='transparent'">
+                <h4 style="margin-bottom: 5px; font-family: 'Orbitron', sans-serif;"><i class="fas fa-bacterium"></i> Animal Cell</h4>
+            </div>
+        </div>
+
+        <div class="feature-item" onclick="toggleTutorMode()" style="cursor: pointer; border: 1px solid var(--primary-blue); margin-top: 10px; background: rgba(0,255,136,0.05);">
+            <h3 style="color: #00ff88;"><i class="fas fa-graduation-cap"></i> Tutor Protocol</h3>
+            <p>Engage "Explain Like I'm 12" learning mode.</p>
+        </div>
+        <div class="feature-item" onclick="openChalkboard()" style="cursor: pointer; border: 1px solid var(--primary-blue); margin-top: 10px;">
+            <h3 style="color: var(--primary-blue);"><i class="fas fa-chalkboard"></i> Virtual Chalkboard</h3>
+            <p>Open an interactive digital chalkboard.</p>
         </div>
     </div>
     <div class="main-feature-toggle" id="main-feature-toggle" onclick="toggleMainFeatureDrawer()">
@@ -1483,6 +1501,26 @@
         #hologram-close:hover {
             transform: scale(1.2); color: #fff;
         }
+
+        /* TUTOR MODE CSS */
+        body.tutor-mode {
+            --primary-blue: #00ff88;
+            --glow: 0 0 15px rgba(0, 255, 136, 0.5);
+        }
+
+        /* CHALKBOARD CSS */
+        #chalkboard-container {
+            position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+            z-index: 10010; display: none; background: #1b3d2b; cursor: crosshair;
+        }
+        #chalkboard-canvas { width: 100%; height: 100%; }
+        .chalk-btn {
+            position: absolute; top: 20px; font-family: 'Orbitron', sans-serif;
+            padding: 10px 20px; background: rgba(255,255,255,0.1); border: 2px solid #fff;
+            color: #fff; cursor: pointer; border-radius: 5px; z-index: 10011;
+        }
+        #chalk-close { right: 20px; }
+        #chalk-clear { right: 120px; }
     </style>
     <div id="mark42-container">
         <img src="/assets/mark42_helmet.png" class="armor-piece" id="armor-head" style="top: -300px; left: 50%; transform: translateX(-50%); width: 150px;">
@@ -1510,6 +1548,12 @@
         <i class="fas fa-times" id="hologram-close" onclick="closeHologram()"></i>
     </div>
 
+    <!-- Chalkboard Container -->
+    <div id="chalkboard-container">
+        <button class="chalk-btn" id="chalk-clear" onclick="clearChalkboard()">CLEAR</button>
+        <button class="chalk-btn" id="chalk-close" onclick="closeChalkboard()">CLOSE</button>
+        <canvas id="chalkboard-canvas"></canvas>
+    </div>
 
     <!-- YouTube IFrame API -->
     <script src="https://www.youtube.com/iframe_api"></script>
@@ -4527,6 +4571,38 @@
                 dna.userData = { rotY: 0.02, rotX: 0 };
                 scene.add(dna);
                 holoObjects.push(dna);
+            } else if (type === 'cylinder') {
+                const geo = new THREE.CylinderGeometry(1.5, 1.5, 4, 32);
+                const mat = new THREE.MeshBasicMaterial({ color: 0x00ff88, wireframe: true });
+                const obj = new THREE.Mesh(geo, mat);
+                obj.userData = { rotY: 0.01, rotX: 0.005 };
+                scene.add(obj); holoObjects.push(obj);
+            } else if (type === 'torus') {
+                const geo = new THREE.TorusKnotGeometry(1.5, 0.4, 100, 16);
+                const mat = new THREE.MeshBasicMaterial({ color: 0xff3333, wireframe: true });
+                const obj = new THREE.Mesh(geo, mat);
+                obj.userData = { rotY: 0.01, rotX: 0.01 };
+                scene.add(obj); holoObjects.push(obj);
+            } else if (type === 'cell') {
+                const outGeo = new THREE.SphereGeometry(2, 32, 32);
+                const outMat = new THREE.MeshBasicMaterial({ color: 0x00d4ff, transparent: true, opacity: 0.2 });
+                const outCell = new THREE.Mesh(outGeo, outMat);
+                outCell.userData = { rotY: 0.002, rotX: 0.001 };
+                scene.add(outCell); holoObjects.push(outCell);
+                
+                const nucGeo = new THREE.SphereGeometry(0.6, 16, 16);
+                const nucMat = new THREE.MeshBasicMaterial({ color: 0xffaa00, transparent: true, opacity: 0.9 });
+                const nucleus = new THREE.Mesh(nucGeo, nucMat);
+                nucleus.position.set(0.5, 0.2, 0);
+                nucleus.userData = { rotY: 0.01, rotX: 0.01 };
+                scene.add(nucleus); holoObjects.push(nucleus);
+                
+                const mitoGeo = new THREE.CapsuleGeometry(0.2, 0.4, 4, 8);
+                const mitoMat = new THREE.MeshBasicMaterial({ color: 0xff3333, wireframe: true });
+                const mito = new THREE.Mesh(mitoGeo, mitoMat);
+                mito.position.set(-0.8, -0.5, 0.5);
+                mito.userData = { rotY: 0.05, rotX: 0 };
+                scene.add(mito); holoObjects.push(mito);
             }
             
             // Particle Data Cloud
@@ -4581,6 +4657,59 @@
         function closeHologram() {
             document.getElementById('hologram-container').style.display = 'none';
             hologramActive = false;
+        }
+
+        // --- CHALKBOARD LOGIC ---
+        let chalkCanvas, chalkCtx;
+        let isChalkDrawing = false;
+        
+        function openChalkboard() {
+            const container = document.getElementById('chalkboard-container');
+            container.style.display = 'block';
+            if (!chalkCanvas) {
+                chalkCanvas = document.getElementById('chalkboard-canvas');
+                chalkCtx = chalkCanvas.getContext('2d');
+                chalkCanvas.width = window.innerWidth;
+                chalkCanvas.height = window.innerHeight;
+                chalkCtx.lineCap = 'round';
+                chalkCtx.lineJoin = 'round';
+                
+                chalkCanvas.addEventListener('mousedown', (e) => {
+                    isChalkDrawing = true;
+                    chalkCtx.beginPath();
+                    chalkCtx.moveTo(e.clientX, e.clientY);
+                });
+                chalkCanvas.addEventListener('mousemove', (e) => {
+                    if (!isChalkDrawing) return;
+                    chalkCtx.lineWidth = Math.random() * 3 + 2;
+                    chalkCtx.strokeStyle = `rgba(255, 255, 255, ${Math.random() * 0.5 + 0.5})`;
+                    chalkCtx.lineTo(e.clientX, e.clientY);
+                    chalkCtx.stroke();
+                });
+                chalkCanvas.addEventListener('mouseup', () => isChalkDrawing = false);
+                chalkCanvas.addEventListener('mouseout', () => isChalkDrawing = false);
+            }
+            speak("Chalkboard is ready, Sir.");
+        }
+        
+        function closeChalkboard() {
+            document.getElementById('chalkboard-container').style.display = 'none';
+        }
+        function clearChalkboard() {
+            if (chalkCtx) chalkCtx.clearRect(0, 0, chalkCanvas.width, chalkCanvas.height);
+        }
+        
+        // --- TUTOR PROTOCOL ---
+        window.tutorMode = false;
+        function toggleTutorMode() {
+            window.tutorMode = !window.tutorMode;
+            if (window.tutorMode) {
+                document.body.classList.add('tutor-mode');
+                speak("Tutor Protocol engaged. Ready to explain science and math at a middle school level.");
+            } else {
+                document.body.classList.remove('tutor-mode');
+                speak("Tutor Protocol deactivated. Returning to standard operative mode.");
+            }
         }
 
     </script>
