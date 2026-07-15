@@ -4881,10 +4881,15 @@
                     body: JSON.stringify(payload)
                 });
                 const data = await res.json();
-                let newHtml = data.reply.replace(/```html/gi, '').replace(/```/g, '').trim();
-                editor.innerHTML = newHtml;
-                saveNotepad();
-                speak("Notes organized.");
+                if (data.candidates && data.candidates.length > 0) {
+                    let reply = data.candidates[0].content.parts[0].text;
+                    let newHtml = reply.replace(/```html/gi, '').replace(/```/g, '').trim();
+                    editor.innerHTML = newHtml;
+                    saveNotepad();
+                    speak("Notes organized.");
+                } else {
+                    speak("Failed to organize notes.");
+                }
             } catch (e) {
                 speak("Failed to organize notes.");
             }
@@ -4896,7 +4901,11 @@
         function openCalendar() {
             document.getElementById('calendar-container').style.display = 'flex';
             if (!document.getElementById('cal-date-picker').value) {
-                document.getElementById('cal-date-picker').valueAsDate = new Date();
+                const today = new Date();
+                const yyyy = today.getFullYear();
+                const mm = String(today.getMonth() + 1).padStart(2, '0');
+                const dd = String(today.getDate()).padStart(2, '0');
+                document.getElementById('cal-date-picker').value = `${yyyy}-${mm}-${dd}`;
             }
             initCalendarGrid();
             loadCalendarEvents();

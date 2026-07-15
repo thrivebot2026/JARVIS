@@ -624,16 +624,26 @@ Your job is to parse it and return PURE JSON matching this exact structure:
 }
 Return ONLY valid JSON. Do not include markdown blocks or any other text. Assume today if no day is specified. Hours must be between 8.0 and 23.0.`;
 
-        const completion = await groq.chat.completions.create({
-            messages: [
-                { role: "system", content: systemPrompt },
-                { role: "user", content: text }
-            ],
-            model: "llama3-8b-8192",
-            temperature: 0.1
+        if (groqKeys.length === 0) return res.status(500).json({ error: "No Groq API key available" });
+        
+        const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${groqKeys[0]}`,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                model: "llama3-8b-8192",
+                messages: [
+                    { role: "system", content: systemPrompt },
+                    { role: "user", content: text }
+                ],
+                temperature: 0.1
+            })
         });
         
-        const reply = completion.choices[0]?.message?.content || "";
+        const completion = await response.json();
+        const reply = completion.choices?.[0]?.message?.content || "";
         let jsonStr = reply;
         const startIndex = reply.indexOf('{');
         const endIndex = reply.lastIndexOf('}');
