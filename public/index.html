@@ -1283,6 +1283,15 @@
             <p>Global surveillance protocol with memory-purge streaming.</p>
         </div>
 
+        <div class="feature-item" style="border: 1px solid #bf00ff; margin-top: 10px; background: rgba(191,0,255,0.05);">
+            <h3 style="color: #bf00ff;"><i class="fas fa-ghost"></i> Ghost Cursor</h3>
+            <p>Record UI tasks and automate replay.</p>
+            <div style="margin-top: 10px; display:flex; gap:10px;">
+                <button id="ghost-record-btn" onclick="toggleGhostRecording()" style="flex:1; background:transparent; border:1px solid #bf00ff; color:#bf00ff; padding:5px; cursor:pointer;">● REC</button>
+                <button onclick="playGhostCursor()" style="flex:1; background:#bf00ff; border:none; color:#fff; padding:5px; cursor:pointer;">▶ PLAY</button>
+            </div>
+        </div>
+
         <div class="feature-item" onclick="document.getElementById('hologram-library-panel').style.display = document.getElementById('hologram-library-panel').style.display === 'none' ? 'block' : 'none';" style="cursor: pointer; border: 1px solid var(--primary-blue); margin-top: 10px; background: rgba(0,212,255,0.05);">
             <h3 style="color: var(--primary-blue);"><i class="fas fa-cube"></i> 3D Hologram Library</h3>
             <p>Access and preview available 3D projections.</p>
@@ -5626,6 +5635,97 @@
             // CRITICAL MEMORY PURGE: Destroy iframes to prevent RAM bloat
             document.getElementById('gods-eye-grid').innerHTML = '';
             speak("Surveillance feed disconnected.");
+        }
+
+        // --- GHOST CURSOR (Phase 2) ---
+        let isGhostRecording = false;
+        let ghostMacro = [];
+        let ghostLastTime = 0;
+        
+        function toggleGhostRecording() {
+            const btn = document.getElementById('ghost-record-btn');
+            if (isGhostRecording) {
+                isGhostRecording = false;
+                btn.style.background = 'transparent';
+                btn.style.color = '#bf00ff';
+                btn.innerText = '● REC';
+                speak("Recording saved.");
+            } else {
+                isGhostRecording = true;
+                ghostMacro = [];
+                ghostLastTime = Date.now();
+                btn.style.background = '#bf00ff';
+                btn.style.color = '#fff';
+                btn.innerText = '■ STOP';
+                speak("Ghost Cursor recording started.");
+            }
+        }
+        
+        document.addEventListener('mousemove', (e) => {
+            if (!isGhostRecording) return;
+            const now = Date.now();
+            ghostMacro.push({ type: 'move', x: e.clientX, y: e.clientY, dt: now - ghostLastTime });
+            ghostLastTime = now;
+        });
+
+        document.addEventListener('click', (e) => {
+            if (!isGhostRecording) return;
+            if (e.target.closest('#ghost-record-btn')) return; // Ignore the record button itself
+            const now = Date.now();
+            ghostMacro.push({ type: 'click', x: e.clientX, y: e.clientY, dt: now - ghostLastTime });
+            ghostLastTime = now;
+        });
+
+        function playGhostCursor() {
+            if (ghostMacro.length === 0) {
+                speak("No macro recorded.");
+                return;
+            }
+            speak("Replaying ghost cursor macro.");
+            
+            // Create ghost cursor element
+            const cursor = document.createElement('div');
+            cursor.style.position = 'fixed';
+            cursor.style.width = '20px';
+            cursor.style.height = '20px';
+            cursor.style.borderRadius = '50%';
+            cursor.style.backgroundColor = 'rgba(191,0,255,0.7)';
+            cursor.style.boxShadow = '0 0 15px #bf00ff';
+            cursor.style.pointerEvents = 'none';
+            cursor.style.zIndex = '999999';
+            cursor.style.transition = 'top 0.05s linear, left 0.05s linear';
+            
+            // Starting position
+            cursor.style.left = ghostMacro[0].x + 'px';
+            cursor.style.top = ghostMacro[0].y + 'px';
+            document.body.appendChild(cursor);
+            
+            let totalTime = 0;
+            ghostMacro.forEach((action) => {
+                totalTime += action.dt;
+                setTimeout(() => {
+                    cursor.style.left = (action.x - 10) + 'px';
+                    cursor.style.top = (action.y - 10) + 'px';
+                    
+                    if (action.type === 'click') {
+                        // Flash effect
+                        cursor.style.backgroundColor = '#fff';
+                        setTimeout(() => cursor.style.backgroundColor = 'rgba(191,0,255,0.7)', 150);
+                        
+                        // Synthetic click
+                        const target = document.elementFromPoint(action.x, action.y);
+                        if (target) {
+                            target.click(); // Dispatch exact click
+                        }
+                    }
+                }, totalTime);
+            });
+            
+            // Clean up cursor after sequence ends
+            setTimeout(() => {
+                document.body.removeChild(cursor);
+                speak("Playback complete.");
+            }, totalTime + 500);
         }
 
         // Initialize features on load
