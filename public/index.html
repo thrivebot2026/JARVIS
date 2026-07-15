@@ -8,6 +8,7 @@
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Rajdhani:wght@300;500;700&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 
     <style>
         :root {
@@ -1448,6 +1449,19 @@
             cursor: crosshair !important;
         }
         @keyframes fast-spin { 100% { transform: rotate(360deg); } }
+
+        /* 3D HOLOGRAM CSS */
+        #hologram-container {
+            position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+            z-index: 9900; display: none; pointer-events: auto; background: rgba(0,212,255,0.02); backdrop-filter: blur(2px);
+        }
+        #hologram-close {
+            position: absolute; top: 30px; right: 30px; color: var(--primary-blue); font-size: 30px; cursor: pointer; z-index: 9901; text-shadow: 0 0 10px var(--primary-blue);
+            transition: transform 0.2s, color 0.2s;
+        }
+        #hologram-close:hover {
+            transform: scale(1.2); color: #fff;
+        }
     </style>
     <div id="mark42-container">
         <img src="/assets/mark42_helmet.png" class="armor-piece" id="armor-head" style="top: -300px; left: 50%; transform: translateX(-50%); width: 150px;">
@@ -1468,6 +1482,11 @@
             <div style="position: absolute; bottom: -5px; right: -5px; width: 30px; height: 30px; border: 4px solid #00d4ff; border-radius: 50%; box-sizing: border-box; animation: fast-spin 0.2s linear infinite;"></div>
             <div style="position: absolute; top: 20px; left: 20px; width: 20px; height: 20px; background: #00d4ff; border-radius: 50%; box-shadow: 0 0 20px #00d4ff;"></div>
         </div>
+    </div>
+
+    <!-- 3D Hologram Container -->
+    <div id="hologram-container">
+        <i class="fas fa-times" id="hologram-close" onclick="closeHologram()"></i>
     </div>
 
 
@@ -2516,6 +2535,17 @@
                     head.style.opacity = '0'; chest.style.opacity = '0'; lArm.style.opacity = '0'; rArm.style.opacity = '0'; legs.style.opacity = '0';
                     setTimeout(() => container.style.display = 'none', 1500);
                 }, 6000);
+                return;
+            }
+
+            // --- 3D HOLOGRAM PROTOCOL ---
+            if (query.includes("render 3d") || query.includes("hologram") || query.includes("open global map") || query.includes("render globe")) {
+                if (query.includes("close") || query.includes("stop")) {
+                    closeHologram();
+                    speak("Hologram dismissed.");
+                } else {
+                    openHologram();
+                }
                 return;
             }
 
@@ -4374,6 +4404,98 @@
                 icon.className = 'fas fa-chevron-left';
                 playSynthSound('hum');
             }
+        }
+
+        // --- 3D HOLOGRAM LOGIC ---
+        let scene, camera, renderer, globe, innerGlobe, particles;
+        let hologramActive = false;
+        
+        function initHologram() {
+            if (scene) return; // already initialized
+            
+            const container = document.getElementById('hologram-container');
+            
+            scene = new THREE.Scene();
+            camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+            camera.position.z = 5;
+            
+            renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            container.appendChild(renderer.domElement);
+            
+            // Wireframe Globe
+            const geometry = new THREE.SphereGeometry(2, 32, 32);
+            const material = new THREE.MeshBasicMaterial({ 
+                color: 0x00d4ff, 
+                wireframe: true, 
+                transparent: true, 
+                opacity: 0.3 
+            });
+            globe = new THREE.Mesh(geometry, material);
+            scene.add(globe);
+
+            // Core Solid Inner Globe
+            const innerGeo = new THREE.SphereGeometry(1.8, 16, 16);
+            const innerMat = new THREE.MeshBasicMaterial({ color: 0x003366, transparent: true, opacity: 0.8 });
+            innerGlobe = new THREE.Mesh(innerGeo, innerMat);
+            scene.add(innerGlobe);
+            
+            // Particle Data Cloud
+            const partGeo = new THREE.BufferGeometry();
+            const partCount = 500;
+            const posArray = new Float32Array(partCount * 3);
+            for(let i=0; i < partCount * 3; i++) {
+                posArray[i] = (Math.random() - 0.5) * 10;
+            }
+            partGeo.setAttribute('position', new THREE.BufferAttribute(posArray, 3));
+            const partMat = new THREE.PointsMaterial({ size: 0.05, color: 0x00d4ff });
+            particles = new THREE.Points(partGeo, partMat);
+            scene.add(particles);
+            
+            // Mouse Interaction
+            let hlMouseX = 0, hlMouseY = 0;
+            document.addEventListener('mousemove', (event) => {
+                if(!hologramActive) return;
+                hlMouseX = (event.clientX / window.innerWidth) * 2 - 1;
+                hlMouseY = -(event.clientY / window.innerHeight) * 2 + 1;
+            });
+
+            const animate = function () {
+                requestAnimationFrame(animate);
+                if (!hologramActive) return;
+                
+                globe.rotation.y += 0.005;
+                globe.rotation.x += 0.002;
+                innerGlobe.rotation.y -= 0.003;
+                particles.rotation.y += 0.001;
+                
+                // Parallax based on mouse
+                camera.position.x += (hlMouseX * 2 - camera.position.x) * 0.05;
+                camera.position.y += (hlMouseY * 2 - camera.position.y) * 0.05;
+                camera.lookAt(scene.position);
+                
+                renderer.render(scene, camera);
+            };
+            animate();
+            
+            window.addEventListener('resize', () => {
+                if(!camera || !renderer) return;
+                camera.aspect = window.innerWidth / window.innerHeight;
+                camera.updateProjectionMatrix();
+                renderer.setSize(window.innerWidth, window.innerHeight);
+            });
+        }
+        
+        function openHologram() {
+            document.getElementById('hologram-container').style.display = 'block';
+            hologramActive = true;
+            initHologram();
+            speak("3D Hologram rendered, Sir.");
+        }
+        
+        function closeHologram() {
+            document.getElementById('hologram-container').style.display = 'none';
+            hologramActive = false;
         }
 
     </script>
