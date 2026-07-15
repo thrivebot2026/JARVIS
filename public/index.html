@@ -1618,21 +1618,25 @@
     <div id="hologram-container">
         <i class="fas fa-times" id="hologram-close" onclick="closeHologram()"></i>
         <div id="globe-ui" style="display:none; position:absolute; top:0; left:0; width:100%; height:100%; pointer-events:none;">
-            <div style="position:absolute; top:20%; left:10%; color:var(--primary-blue); font-family:'Orbitron'; text-shadow:0 0 10px var(--primary-blue); font-size: 24px;">
+            <div style="position:absolute; top:15%; left:10%; color:var(--primary-blue); font-family:'Orbitron'; text-shadow:0 0 10px var(--primary-blue); font-size: 24px;">
                 <h3>NEW YORK</h3>
                 <h4 id="tz-ny" style="font-family:'Rajdhani';">--:--</h4>
             </div>
-            <div style="position:absolute; top:30%; right:15%; color:var(--primary-blue); font-family:'Orbitron'; text-shadow:0 0 10px var(--primary-blue); font-size: 24px; text-align:right;">
+            <div style="position:absolute; top:25%; right:15%; color:var(--primary-blue); font-family:'Orbitron'; text-shadow:0 0 10px var(--primary-blue); font-size: 24px; text-align:right;">
                 <h3>LONDON</h3>
                 <h4 id="tz-lon" style="font-family:'Rajdhani';">--:--</h4>
             </div>
-            <div style="position:absolute; bottom:30%; left:15%; color:var(--primary-blue); font-family:'Orbitron'; text-shadow:0 0 10px var(--primary-blue); font-size: 24px;">
+            <div style="position:absolute; bottom:35%; left:15%; color:var(--primary-blue); font-family:'Orbitron'; text-shadow:0 0 10px var(--primary-blue); font-size: 24px;">
                 <h3>TOKYO</h3>
                 <h4 id="tz-tokyo" style="font-family:'Rajdhani';">--:--</h4>
             </div>
-            <div style="position:absolute; bottom:20%; right:10%; color:var(--primary-blue); font-family:'Orbitron'; text-shadow:0 0 10px var(--primary-blue); font-size: 24px; text-align:right;">
+            <div style="position:absolute; bottom:25%; right:10%; color:var(--primary-blue); font-family:'Orbitron'; text-shadow:0 0 10px var(--primary-blue); font-size: 24px; text-align:right;">
                 <h3>SYDNEY</h3>
                 <h4 id="tz-syd" style="font-family:'Rajdhani';">--:--</h4>
+            </div>
+            <div style="position:absolute; top:10%; left:50%; transform:translateX(-50%); color:var(--primary-blue); font-family:'Orbitron'; text-shadow:0 0 10px var(--primary-blue); font-size: 24px; text-align:center;">
+                <h3>INDIA</h3>
+                <h4 id="tz-india" style="font-family:'Rajdhani';">--:--</h4>
             </div>
         </div>
     </div>
@@ -4828,6 +4832,7 @@
             document.getElementById('tz-lon').innerText = new Intl.DateTimeFormat('en-US', { timeZone: 'Europe/London', timeStyle: 'short' }).format(now);
             document.getElementById('tz-tokyo').innerText = new Intl.DateTimeFormat('en-US', { timeZone: 'Asia/Tokyo', timeStyle: 'short' }).format(now);
             document.getElementById('tz-syd').innerText = new Intl.DateTimeFormat('en-US', { timeZone: 'Australia/Sydney', timeStyle: 'short' }).format(now);
+            document.getElementById('tz-india').innerText = new Intl.DateTimeFormat('en-US', { timeZone: 'Asia/Kolkata', timeStyle: 'short' }).format(now);
         }, 1000);
 
         function closeHologram() {
