@@ -4931,13 +4931,18 @@
             const events = calendarData[date] || [];
             
             events.forEach(ev => {
-                // ev.start and ev.end should be in 24hr format float e.g. 14.5 for 2:30 PM
-                const startHour = Math.max(8, ev.start); 
-                const endHour = Math.min(23, ev.end);
-                if (startHour >= 23 || endHour <= 8) return;
+                let s = parseFloat(ev.start);
+                let e = parseFloat(ev.end);
+                if (isNaN(s)) s = 8;
+                if (isNaN(e)) e = 9;
+                if (s > e) e = s + 1; // fix inverted times
                 
-                const top = (startHour - 8) * 60;
-                const height = (endHour - startHour) * 60;
+                // If user put 1-12, assume they meant PM for times < 8
+                if (s < 8) s += 12;
+                if (e <= 8) e += 12;
+
+                const top = (s - 8) * 60;
+                const height = Math.max(20, (e - s) * 60);
                 
                 let block = document.createElement('div');
                 block.className = 'cal-event';
