@@ -4,6 +4,8 @@ const si = require('systeminformation');
 const ytSearch = require('yt-search');
 require('dotenv').config();
 
+process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
+
 const app = express();
 app.use(cors());
 app.use(express.json({ limit: '50mb' }));
@@ -663,6 +665,32 @@ Return ONLY valid JSON. Do not include markdown blocks or any other text. Assume
         console.error("Parse Schedule Error:", error);
         return res.status(500).json({ error: "Failed to parse schedule" });
     }
+});
+
+// --- MARKET API ENDPOINT ---
+app.get('/api/market', async (req, res) => {
+    const symbols = req.query.symbols ? req.query.symbols.split(',') : [];
+    if (!symbols.length) return res.json({});
+    
+    let results = {};
+    for (const sym of symbols) {
+        try {
+            const yfRes = await fetch(`https://query1.finance.yahoo.com/v8/finance/chart/${sym}?interval=1d`);
+            const data = await yfRes.json();
+            if (data && data.chart && data.chart.result && data.chart.result.length > 0) {
+                const meta = data.chart.result[0].meta;
+                results[sym] = {
+                    price: meta.regularMarketPrice,
+                    prevClose: meta.previousClose,
+                    change: (meta.regularMarketPrice - meta.previousClose).toFixed(2),
+                    changePercent: (((meta.regularMarketPrice - meta.previousClose) / meta.previousClose) * 100).toFixed(2)
+                };
+            }
+        } catch (e) {
+            console.error(`Error fetching ${sym}:`, e.message);
+        }
+    }
+    res.json(results);
 });
 
 const PORT = process.env.PORT || 3000;

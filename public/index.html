@@ -1233,6 +1233,11 @@
             <p>A 3D space manifesting everything JARVIS has memorized for you.</p>
         </div>
 
+        <div class="feature-item" onclick="openMarket()" style="cursor: pointer; border: 1px solid #00ff88; margin-top: 10px; background: rgba(0,255,136,0.05);">
+            <h3 style="color: #00ff88;"><i class="fas fa-chart-line"></i> Global Market Feed</h3>
+            <p>Live ticker tracking for US and Indian stock exchanges.</p>
+        </div>
+
         <div class="feature-item" onclick="document.getElementById('hologram-library-panel').style.display = document.getElementById('hologram-library-panel').style.display === 'none' ? 'block' : 'none';" style="cursor: pointer; border: 1px solid var(--primary-blue); margin-top: 10px; background: rgba(0,212,255,0.05);">
             <h3 style="color: var(--primary-blue);"><i class="fas fa-cube"></i> 3D Hologram Library</h3>
             <p>Access and preview available 3D projections.</p>
@@ -2897,6 +2902,15 @@
                     closeHologram();
                 } else {
                     openHologram('palace');
+                }
+                return;
+            }
+
+            if (query.includes("market") || query.includes("stock") || query.includes("stonk") || query.includes("shares")) {
+                if (query.includes("close") || query.includes("hide")) {
+                    closeMarket();
+                } else {
+                    openMarket();
                 }
                 return;
             }
@@ -5399,6 +5413,58 @@
                 if (bodies.length > 0) bodies[bodies.length - 1].focus();
             }, 50);
         });
+
+        // --- MARKET UI (Phase 2) ---
+        let marketInterval;
+        const usStocks = ['AAPL', 'MSFT', 'TSLA', 'NVDA', 'AMZN', 'GOOGL', 'SPY', 'QQQ'];
+        const inStocks = ['RELIANCE.NS', 'TCS.NS', 'HDFCBANK.NS', 'INFY.NS', 'ICICIBANK.NS', 'SBIN.NS', '^NSEI', '^BSESN'];
+
+        function openMarket() {
+            document.getElementById('market-ui').style.display = 'block';
+            speak("Opening Global Market Feed.");
+            fetchMarketData();
+            marketInterval = setInterval(fetchMarketData, 30000); // 30s updates
+        }
+
+        function closeMarket() {
+            document.getElementById('market-ui').style.display = 'none';
+            clearInterval(marketInterval);
+        }
+
+        async function fetchMarketData() {
+            try {
+                const allSymbols = [...usStocks, ...inStocks].join(',');
+                const res = await fetch(`/api/market?symbols=${allSymbols}`);
+                const data = await res.json();
+                
+                renderMarketGrid('market-us-grid', usStocks, data);
+                renderMarketGrid('market-in-grid', inStocks, data);
+            } catch(e) {
+                console.error("Market fetch error:", e);
+            }
+        }
+
+        function renderMarketGrid(gridId, symbols, data) {
+            const grid = document.getElementById(gridId);
+            grid.innerHTML = '';
+            symbols.forEach(sym => {
+                const info = data[sym];
+                if(!info) return;
+                const isUp = info.change >= 0;
+                const color = isUp ? '#00ff88' : '#ff3333';
+                const arrow = isUp ? '▲' : '▼';
+                
+                grid.innerHTML += `
+                    <div style="background:rgba(0,0,0,0.5); border:1px solid ${color}; padding:15px; border-radius:5px; box-shadow: 0 0 10px ${color}40;">
+                        <h3 style="color:#fff; font-family:'Orbitron'; font-size:20px; margin-bottom:10px;">${sym.replace('.NS','')}</h3>
+                        <div style="font-size:28px; font-weight:bold; color:#fff;">${sym.includes('.NS') || sym.includes('^NSE') || sym.includes('^BSE') ? '₹' : '$'}${parseFloat(info.price).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</div>
+                        <div style="color:${color}; font-size:16px; margin-top:5px; font-weight:bold;">
+                            ${arrow} ${Math.abs(info.change).toFixed(2)} (${Math.abs(info.changePercent).toFixed(2)}%)
+                        </div>
+                    </div>
+                `;
+            });
+        }
 
         // Initialize features on load
         window.addEventListener('load', () => {
