@@ -1292,7 +1292,23 @@
             </div>
         </div>
 
-        <div class="feature-item" onclick="document.getElementById('hologram-library-panel').style.display = document.getElementById('hologram-library-panel').style.display === 'none' ? 'block' : 'none';" style="cursor: pointer; border: 1px solid var(--primary-blue); margin-top: 10px; background: rgba(0,212,255,0.05);">
+        <div class="feature-item" style="border: 1px solid #ff00ff; margin-top: 10px; background: rgba(255,0,255,0.05);">
+            <h3 style="color: #ff00ff;"><i class="fas fa-bell"></i> Contextual Reminder</h3>
+            <p>Remind based on actions, not time.</p>
+            <div style="margin-top: 5px; display:flex; flex-direction:column; gap:5px;">
+                <select id="cr-trigger" style="background:#000; color:#00ffcc; border:1px solid #ff00ff; padding:5px;">
+                    <option value="browser">When I open Browser</option>
+                    <option value="market">When I open Market Feed</option>
+                    <option value="godseye">When I open God's Eye</option>
+                    <option value="hologram">When I view Holograms</option>
+                </select>
+                <input type="text" id="cr-message" placeholder="Message to remind..." style="background:#000; color:#fff; border:1px solid #ff00ff; padding:5px;">
+                <button onclick="addContextualReminder()" style="background:#ff00ff; border:none; color:#fff; padding:5px; cursor:pointer;">SET REMINDER</button>
+            </div>
+            <div id="cr-list" style="margin-top:5px; font-size:12px; color:#ff00ff;"></div>
+        </div>
+
+        <div class="feature-item" onclick="openHologram('cube')" style="cursor: pointer; border: 1px solid var(--primary-blue); margin-top: 10px; background: rgba(0,212,255,0.05);">
             <h3 style="color: var(--primary-blue);"><i class="fas fa-cube"></i> 3D Hologram Library</h3>
             <p>Access and preview available 3D projections.</p>
         </div>
@@ -4646,15 +4662,15 @@
         let activeTabId = null;
         let tabCounter = 0;
 
-        function toggleBrowser(show) {
-            const panel = document.getElementById('jarvis-browser-panel');
-            if (show) {
-                panel.style.display = 'flex';
+        function toggleBrowser(state) {
+            const browser = document.getElementById('jarvis-browser-panel');
+            browser.style.display = state ? 'flex' : 'none';
+            if (state) {
+                checkContextualReminders('browser');
+                speak("Browser online.");
                 if (browserTabs.length === 0) {
                     addNewBrowserTab();
                 }
-            } else {
-                panel.style.display = 'none';
             }
         }
 
@@ -5043,21 +5059,18 @@
             });
         }
         
-        function openHologram(type = 'globe') {
-            document.getElementById('hologram-container').style.display = 'block';
-            const globeUi = document.getElementById('globe-ui');
-            const vaultUi = document.getElementById('vault-ui');
-            const palaceUi = document.getElementById('palace-ui');
-            
-            if(globeUi) globeUi.style.display = type === 'globe' ? 'block' : 'none';
-            if(vaultUi) vaultUi.style.display = type === 'vault' ? 'block' : 'none';
-            if(palaceUi) palaceUi.style.display = 'none'; // hidden until orb is clicked
-            
-            if(type === 'vault') renderVault();
-            
-            hologramActive = true;
-            initHologram(type);
-            speak(`3D Hologram rendered, Sir.`);
+        function openHologram(type) {
+            document.getElementById('hologram-overlay').style.display = 'flex';
+            checkContextualReminders('hologram');
+            if(type === 'vault') {
+                speak("Accessing Secure Data Vault.");
+                initVaultHologram();
+            } else if (type === 'palace') {
+                speak("Entering Memory Palace.");
+                initPalaceHologram();
+            } else {
+                initHologram(type);
+            }
         }
         
         // --- 3D VAULT LOGIC ---
@@ -5547,8 +5560,12 @@
 
         function openMarket() {
             document.getElementById('market-ui').style.display = 'block';
-            speak("Opening Global Market Feed.");
-            fetchMarketData();
+            checkContextualReminders('market');
+            speak("Accessing global market data feed.");
+            // If data is empty, trigger a refresh
+            if(document.getElementById('market-us-grid').innerHTML.trim() === '') {
+                loadStockData();
+            }
             marketInterval = setInterval(fetchMarketData, 30000); // 30s updates
         }
 
@@ -5595,6 +5612,7 @@
         // --- GOD'S EYE (Phase 3) ---
         async function openGodsEye() {
             document.getElementById('gods-eye-ui').style.display = 'block';
+            checkContextualReminders('godseye');
             speak("God's Eye Protocol activated. Accessing global surveillance network.");
             
             const grid = document.getElementById('gods-eye-grid');
@@ -5728,12 +5746,74 @@
             }, totalTime + 500);
         }
 
+        // --- CONTEXTUAL REMINDERS (Phase 3) ---
+        let contextReminders = JSON.parse(localStorage.getItem('jarvis_context_reminders') || '[]');
+        
+        function addContextualReminder() {
+            const trigger = document.getElementById('cr-trigger').value;
+            const msg = document.getElementById('cr-message').value;
+            if(!msg) return;
+            contextReminders.push({ trigger, message: msg });
+            localStorage.setItem('jarvis_context_reminders', JSON.stringify(contextReminders));
+            document.getElementById('cr-message').value = '';
+            speak(`Contextual reminder set for ${trigger}.`);
+            renderContextReminders();
+        }
+
+        function renderContextReminders() {
+            const list = document.getElementById('cr-list');
+            if(!list) return;
+            list.innerHTML = contextReminders.map((r, i) => `
+                <div style="display:flex; justify-content:space-between; border-bottom:1px solid rgba(255,0,255,0.2); padding:2px 0;">
+                    <span>[${r.trigger}] ${r.message}</span>
+                    <i class="fas fa-times" style="cursor:pointer;" onclick="deleteContextReminder(${i})"></i>
+                </div>
+            `).join('');
+        }
+
+        function deleteContextReminder(index) {
+            contextReminders.splice(index, 1);
+            localStorage.setItem('jarvis_context_reminders', JSON.stringify(contextReminders));
+            renderContextReminders();
+        }
+
+        function checkContextualReminders(trigger) {
+            const matches = contextReminders.filter(r => r.trigger === trigger);
+            if (matches.length > 0) {
+                contextReminders = contextReminders.filter(r => r.trigger !== trigger);
+                localStorage.setItem('jarvis_context_reminders', JSON.stringify(contextReminders));
+                renderContextReminders();
+                
+                const alertDiv = document.createElement('div');
+                alertDiv.style.position = 'fixed';
+                alertDiv.style.top = '20px';
+                alertDiv.style.left = '50%';
+                alertDiv.style.transform = 'translateX(-50%)';
+                alertDiv.style.background = 'rgba(255,0,255,0.9)';
+                alertDiv.style.color = '#fff';
+                alertDiv.style.padding = '20px';
+                alertDiv.style.border = '2px solid #fff';
+                alertDiv.style.zIndex = '9999999';
+                alertDiv.style.fontFamily = 'Orbitron';
+                alertDiv.style.boxShadow = '0 0 20px #ff00ff';
+                alertDiv.innerHTML = `<h3><i class="fas fa-bell"></i> REMINDER</h3>` + matches.map(m => `<p>${m.message}</p>`).join('');
+                document.body.appendChild(alertDiv);
+                
+                speak(`Reminder: ${matches[0].message}`);
+                
+                setTimeout(() => {
+                    if (document.body.contains(alertDiv)) document.body.removeChild(alertDiv);
+                }, 5000);
+            }
+        }
+
         // Initialize features on load
         window.addEventListener('load', () => {
             loadStockData();
             loadSchedule();
             loadHolograms();
             renderARNotes();
+            renderContextReminders();
         });
     </script>
 </body>
