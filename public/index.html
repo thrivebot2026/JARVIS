@@ -27,12 +27,22 @@
             box-shadow: 0 0 10px var(--primary-blue); pointer-events: auto;
             display: flex; flex-direction: column; backdrop-filter: blur(5px);
             transition: box-shadow 0.3s, border-color 0.3s; z-index: 50;
+            resize: both; overflow: hidden; min-width: 150px; min-height: 100px;
         }
-        .ar-note textarea {
+        .ar-note-body {
             flex: 1; background: transparent; border: none; color: #fff;
             font-family: 'Rajdhani', sans-serif; padding: 10px; outline: none;
-            resize: none; font-size: 16px;
+            font-size: 16px; overflow-y: auto;
         }
+        .ar-note-toolbar {
+            display: flex; gap: 5px; padding: 5px; background: rgba(0,0,0,0.5);
+            border-bottom: 1px solid rgba(255,255,255,0.2);
+        }
+        .ar-note-toolbar button {
+            background: none; border: 1px solid rgba(255,255,255,0.3); color: #fff;
+            cursor: pointer; padding: 2px 6px; font-family: 'Orbitron'; font-size: 12px; border-radius:3px;
+        }
+        .ar-note-toolbar button:hover { background: rgba(255,255,255,0.2); }
         .ar-note-header {
             display: flex; justify-content: space-between; padding: 5px 10px;
             border-bottom: 1px solid var(--primary-blue); background: rgba(0,212,255, 0.2);
@@ -5283,12 +5293,58 @@
                 div.style.top = note.y + 'px';
                 
                 div.innerHTML = `
-                    <div class="ar-note-header">
+                    <div class="ar-note-header" style="cursor: move;">
                         <i class="fas fa-palette" onclick="cycleARNoteColor(${index})" title="Change Color"></i>
                         <i class="fas fa-times" onclick="deleteARNote(${index})" title="Delete Note"></i>
                     </div>
-                    <textarea onchange="updateARNoteText(${index}, this.value)" placeholder="Type note here...">${note.text}</textarea>
+                    <div class="ar-note-toolbar">
+                        <button onclick="formatARNote('bold')" title="Bold"><b>B</b></button>
+                        <button onclick="formatARNote('underline')" title="Underline"><u>U</u></button>
+                        <button onclick="formatARNote('strikeThrough')" title="Strikethrough"><s>S</s></button>
+                        <button onclick="formatARNote('insertUnorderedList')" title="Bullet List"><i class="fas fa-list-ul"></i></button>
+                    </div>
+                    <div class="ar-note-body" contenteditable="true" onblur="updateARNoteText(${index}, this.innerHTML)">${note.text || ''}</div>
                 `;
+                
+                const header = div.querySelector('.ar-note-header');
+                let isDragging = false, startX, startY, origX, origY;
+                header.addEventListener('mousedown', (e) => {
+                    isDragging = true;
+                    startX = e.clientX; startY = e.clientY;
+                    origX = note.x; origY = note.y;
+                    
+                    const moveNote = (moveEvent) => {
+                        if(!isDragging) return;
+                        note.x = origX + (moveEvent.clientX - startX);
+                        note.y = origY + (moveEvent.clientY - startY);
+                        div.style.left = note.x + 'px';
+                        div.style.top = note.y + 'px';
+                    };
+                    const stopDrag = () => {
+                        isDragging = false;
+                        saveARNotes();
+                        document.removeEventListener('mousemove', moveNote);
+                        document.removeEventListener('mouseup', stopDrag);
+                    };
+                    document.addEventListener('mousemove', moveNote);
+                    document.addEventListener('mouseup', stopDrag);
+                });
+                
+                // Track resize
+                const resizeObserver = new ResizeObserver(entries => {
+                    for (let entry of entries) {
+                        note.width = entry.contentRect.width;
+                        note.height = entry.contentRect.height;
+                        saveARNotes();
+                    }
+                });
+                resizeObserver.observe(div);
+                
+                if (note.width && note.height) {
+                    div.style.width = note.width + 'px';
+                    div.style.height = note.height + 'px';
+                }
+
                 container.appendChild(div);
             });
         }
@@ -5301,6 +5357,10 @@
             saveARNotes();
             renderARNotes();
             playSynthSound('blip');
+        }
+
+        function formatARNote(command) {
+            document.execCommand(command, false, null);
         }
 
         function updateARNoteText(index, text) {
@@ -5335,8 +5395,8 @@
             
             // Focus the new note automatically
             setTimeout(() => {
-                const textareas = document.querySelectorAll('.ar-note textarea');
-                if (textareas.length > 0) textareas[textareas.length - 1].focus();
+                const bodies = document.querySelectorAll('.ar-note-body');
+                if (bodies.length > 0) bodies[bodies.length - 1].focus();
             }, 50);
         });
 
