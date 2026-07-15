@@ -1181,6 +1181,10 @@
         
         <!-- Nested Hologram Library -->
         <div id="hologram-library-panel" style="display: none; padding: 10px; border-left: 2px solid var(--primary-blue); margin: 10px 0;">
+            <div class="library-item" onclick="openHologram('vault')" style="padding: 10px; border: 1px solid rgba(0, 212, 255, 0.3); margin-bottom: 5px; cursor: pointer; transition: 0.2s;" onmouseover="this.style.background='rgba(0,212,255,0.1)'" onmouseout="this.style.background='transparent'">
+                <h4 style="margin-bottom: 5px; font-family: 'Orbitron', sans-serif;"><i class="fas fa-lock"></i> 3D Data Vault</h4>
+                <p style="font-size: 0.8em; opacity: 0.7;">"Open the vault" | "Show data vault"</p>
+            </div>
             <div class="library-item" onclick="openHologram('globe')" style="padding: 10px; border: 1px solid rgba(0, 212, 255, 0.3); margin-bottom: 5px; cursor: pointer; transition: 0.2s;" onmouseover="this.style.background='rgba(0,212,255,0.1)'" onmouseout="this.style.background='transparent'">
                 <h4 style="margin-bottom: 5px; font-family: 'Orbitron', sans-serif;"><i class="fas fa-globe"></i> Global Threat Map</h4>
                 <p style="font-size: 0.8em; opacity: 0.7;">"Render globe" | "Open global map"</p>
@@ -1638,6 +1642,16 @@
                 <h3>INDIA</h3>
                 <h4 id="tz-india" style="font-family:'Rajdhani';">--:--</h4>
             </div>
+        </div>
+        
+        <!-- Vault HUD Overlay -->
+        <div id="vault-ui" style="display:none; position:absolute; top:10%; left:5%; width:30%; max-height:80%; pointer-events:auto; color:var(--primary-blue); font-family:'Rajdhani', sans-serif;">
+            <h2 style="font-family:'Orbitron'; text-shadow:0 0 10px var(--primary-blue); border-bottom:1px solid var(--primary-blue); padding-bottom:10px;">DATA VAULT</h2>
+            <div style="display:flex; margin-top:10px;">
+                <input type="text" id="vault-input" placeholder="Paste link or text..." style="flex:1; background:rgba(0,0,0,0.5); border:1px solid var(--primary-blue); color:#fff; padding:10px; outline:none; font-family:'Rajdhani'; font-size: 16px;">
+                <button onclick="saveToVault()" style="background:rgba(0,212,255,0.2); border:1px solid var(--primary-blue); color:var(--primary-blue); padding:10px; cursor:pointer; font-weight:bold; transition:0.2s; font-family:'Orbitron';">SAVE</button>
+            </div>
+            <div id="vault-list" style="margin-top:20px; overflow-y:auto; max-height:calc(100vh - 250px); pointer-events:auto;"></div>
         </div>
     </div>
 
@@ -2803,6 +2817,15 @@
                     closeHologram();
                 } else {
                     openHologram('globe');
+                }
+                return;
+            }
+
+            if (query.includes("vault") || query.includes("data vault")) {
+                if (query.includes("close") || query.includes("hide")) {
+                    closeHologram();
+                } else {
+                    openHologram('vault');
                 }
                 return;
             }
@@ -4725,6 +4748,20 @@
                 scene.add(innerCore);
                 holoObjects.push(innerCore);
                 
+            } else if (type === 'vault') {
+                const geo = new THREE.OctahedronGeometry(2, 0);
+                const mat = new THREE.MeshBasicMaterial({ color: 0x00d4ff, wireframe: true, transparent: true, opacity: 0.8 });
+                const vaultObj = new THREE.Mesh(geo, mat);
+                vaultObj.userData = { rotY: 0.005, rotX: 0.005 };
+                scene.add(vaultObj);
+                holoObjects.push(vaultObj);
+                
+                const innerGeo = new THREE.BoxGeometry(1.5, 1.5, 1.5);
+                const innerMat = new THREE.MeshBasicMaterial({ color: 0xffaa00, wireframe: true, transparent: true, opacity: 0.5 });
+                const core = new THREE.Mesh(innerGeo, innerMat);
+                core.userData = { rotY: -0.01, rotX: -0.01 };
+                scene.add(core);
+                holoObjects.push(core);
             } else if (type === 'dna') {
                 const dnaGeo = new THREE.BufferGeometry();
                 const points = [];
@@ -4819,10 +4856,53 @@
         function openHologram(type = 'globe') {
             document.getElementById('hologram-container').style.display = 'block';
             const globeUi = document.getElementById('globe-ui');
+            const vaultUi = document.getElementById('vault-ui');
             if(globeUi) globeUi.style.display = type === 'globe' ? 'block' : 'none';
+            if(vaultUi) vaultUi.style.display = type === 'vault' ? 'block' : 'none';
+            
+            if(type === 'vault') renderVault();
+            
             hologramActive = true;
             initHologram(type);
             speak(`3D Hologram rendered, Sir.`);
+        }
+        
+        // --- 3D VAULT LOGIC ---
+        let vaultData = JSON.parse(localStorage.getItem('jarvis_vault') || '[]');
+
+        function saveToVault() {
+            const input = document.getElementById('vault-input');
+            const text = input.value.trim();
+            if(!text) return;
+            vaultData.unshift({ text: text, date: new Date().toISOString() });
+            localStorage.setItem('jarvis_vault', JSON.stringify(vaultData));
+            input.value = '';
+            renderVault();
+            speak("Data archived securely in the vault.");
+        }
+
+        function deleteFromVault(index) {
+            vaultData.splice(index, 1);
+            localStorage.setItem('jarvis_vault', JSON.stringify(vaultData));
+            renderVault();
+            speak("Data purged from the vault.");
+        }
+
+        function renderVault() {
+            const list = document.getElementById('vault-list');
+            if(!list) return;
+            list.innerHTML = '';
+            vaultData.forEach((item, index) => {
+                const isUrl = item.text.startsWith('http');
+                list.innerHTML += `
+                    <div style="border:1px solid rgba(0,212,255,0.3); background:rgba(0,212,255,0.05); padding:10px; margin-bottom:10px; display:flex; align-items:center; justify-content:space-between; backdrop-filter: blur(5px);">
+                        <div style="flex:1; word-break:break-all; padding-right:10px; font-size: 16px;">
+                            ${isUrl ? `<a href="${item.text}" target="_blank" style="color:var(--primary-blue); text-decoration:underline;">${item.text}</a>` : `<span>${item.text}</span>`}
+                        </div>
+                        <i class="fas fa-trash" style="cursor:pointer; color:rgba(255,50,50,0.8); font-size:18px;" onclick="deleteFromVault(${index})"></i>
+                    </div>
+                `;
+            });
         }
         
         setInterval(() => {
