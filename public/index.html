@@ -20,6 +20,42 @@
 
         * { margin: 0; padding: 0; box-sizing: border-box; }
 
+        /* AR Notes CSS */
+        .ar-note {
+            position: absolute; width: 220px; height: 220px;
+            background: rgba(0, 0, 0, 0.75); border: 1px solid var(--primary-blue);
+            box-shadow: 0 0 10px var(--primary-blue); pointer-events: auto;
+            display: flex; flex-direction: column; backdrop-filter: blur(5px);
+            transition: box-shadow 0.3s, border-color 0.3s; z-index: 50;
+        }
+        .ar-note textarea {
+            flex: 1; background: transparent; border: none; color: #fff;
+            font-family: 'Rajdhani', sans-serif; padding: 10px; outline: none;
+            resize: none; font-size: 16px;
+        }
+        .ar-note-header {
+            display: flex; justify-content: space-between; padding: 5px 10px;
+            border-bottom: 1px solid var(--primary-blue); background: rgba(0,212,255, 0.2);
+            cursor: pointer;
+        }
+        .ar-note-header i { cursor: pointer; color: var(--primary-blue); transition: 0.2s; }
+        .ar-note-header i:hover { transform: scale(1.2); }
+
+        .ar-note.color-green { border-color: #00ff88; box-shadow: 0 0 10px #00ff88; }
+        .ar-note.color-green .ar-note-header { border-color: #00ff88; background: rgba(0,255,136,0.2); }
+        .ar-note.color-green .ar-note-header i { color: #00ff88; }
+
+        .ar-note.color-orange { border-color: #ffaa00; box-shadow: 0 0 10px #ffaa00; }
+        .ar-note.color-orange .ar-note-header { border-color: #ffaa00; background: rgba(255,170,0,0.2); }
+        .ar-note.color-orange .ar-note-header i { color: #ffaa00; }
+
+        .ar-note.color-red { border-color: #ff3333; box-shadow: 0 0 10px #ff3333; }
+        .ar-note.color-red .ar-note-header { border-color: #ff3333; background: rgba(255,51,51,0.2); }
+        .ar-note.color-red .ar-note-header i { color: #ff3333; }
+        .ar-note.color-pink { border-color: #ff00ff; box-shadow: 0 0 10px #ff00ff; }
+        .ar-note.color-pink .ar-note-header { border-color: #ff00ff; background: rgba(255,0,255,0.2); }
+        .ar-note.color-pink .ar-note-header i { color: #ff00ff; }
+
         body {
             background: var(--dark-bg);
             background-image: 
@@ -1075,6 +1111,9 @@
     </style>
 </head>
 <body>
+    <!-- AR Notes Container -->
+    <div id="ar-notes-container" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 50;"></div>
+
     <!-- JARVIS BROWSER PANEL -->
     <div id="jarvis-browser-panel">
         <div class="browser-header">
@@ -5223,9 +5262,91 @@
             document.getElementById('manual-event-modal').style.display = 'none';
             document.getElementById('me-title').value = '';
             document.getElementById('me-desc').value = '';
-            speak("Event added.");
+            chalkCtx.stroke();
         }
 
+        // --- AR NOTES (Feature #3) ---
+        let arNotes = JSON.parse(localStorage.getItem('jarvis_ar_notes') || '[]');
+        const arColors = ['blue', 'green', 'orange', 'red', 'pink'];
+
+        function saveARNotes() {
+            localStorage.setItem('jarvis_ar_notes', JSON.stringify(arNotes));
+        }
+
+        function renderARNotes() {
+            const container = document.getElementById('ar-notes-container');
+            container.innerHTML = '';
+            arNotes.forEach((note, index) => {
+                const div = document.createElement('div');
+                div.className = `ar-note color-${note.color}`;
+                div.style.left = note.x + 'px';
+                div.style.top = note.y + 'px';
+                
+                div.innerHTML = `
+                    <div class="ar-note-header">
+                        <i class="fas fa-palette" onclick="cycleARNoteColor(${index})" title="Change Color"></i>
+                        <i class="fas fa-times" onclick="deleteARNote(${index})" title="Delete Note"></i>
+                    </div>
+                    <textarea onchange="updateARNoteText(${index}, this.value)" placeholder="Type note here...">${note.text}</textarea>
+                `;
+                container.appendChild(div);
+            });
+        }
+
+        function cycleARNoteColor(index) {
+            const note = arNotes[index];
+            const currentIdx = arColors.indexOf(note.color);
+            const nextIdx = (currentIdx + 1) % arColors.length;
+            note.color = arColors[nextIdx];
+            saveARNotes();
+            renderARNotes();
+            playSynthSound('blip');
+        }
+
+        function updateARNoteText(index, text) {
+            arNotes[index].text = text;
+            saveARNotes();
+        }
+
+        function deleteARNote(index) {
+            arNotes.splice(index, 1);
+            saveARNotes();
+            renderARNotes();
+            playSynthSound('tap');
+        }
+
+        // Global double-click to spawn notes
+        document.body.addEventListener('dblclick', (e) => {
+            // Prevent spawning if clicking on UI elements or existing notes
+            if (e.target.closest('.ar-note') || e.target.closest('#main-feature-drawer') || e.target.closest('.floating-panel') || e.target.closest('#chat-container')) {
+                return;
+            }
+            // Spawn new note at mouse coords
+            const newNote = {
+                x: e.clientX,
+                y: e.clientY,
+                text: '',
+                color: 'blue'
+            };
+            arNotes.push(newNote);
+            saveARNotes();
+            renderARNotes();
+            playSynthSound('blip');
+            
+            // Focus the new note automatically
+            setTimeout(() => {
+                const textareas = document.querySelectorAll('.ar-note textarea');
+                if (textareas.length > 0) textareas[textareas.length - 1].focus();
+            }, 50);
+        });
+
+        // Initialize features on load
+        window.addEventListener('load', () => {
+            loadStockData();
+            loadSchedule();
+            loadHolograms();
+            renderARNotes();
+        });
     </script>
 </body>
-</html>
+</html>
