@@ -698,6 +698,30 @@ app.get('/api/market', async (req, res) => {
     res.json(results);
 });
 
+// --- GOD'S EYE DYNAMIC STREAM API ---
+app.get('/api/godseye', async (req, res) => {
+    const queries = [
+        "NASA ISS live stream earth",
+        "Times Square live stream",
+        "Tokyo Shibuya crossing live",
+        "Kitten rescue live stream"
+    ];
+    let feeds = [];
+    for (const q of queries) {
+        try {
+            const r = await ytSearch(q);
+            if (r && r.live && r.live.length > 0) {
+                feeds.push(`https://www.youtube.com/embed/${r.live[0].videoId}?autoplay=1&mute=1&controls=0`);
+            } else {
+                feeds.push('');
+            }
+        } catch (e) {
+            feeds.push('');
+        }
+    }
+    res.json({ feeds: feeds.filter(f => f !== '') });
+});
+
 const PORT = process.env.PORT || 3000;
 
 if (process.env.NODE_ENV !== 'production') {

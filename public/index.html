@@ -5519,36 +5519,41 @@
         }
 
         // --- GOD'S EYE (Phase 3) ---
-        const godsEyeFeeds = [
-            'https://www.youtube.com/embed/1eiCMApnGcE?autoplay=1&mute=1&controls=0', // ISS
-            'https://www.youtube.com/embed/1-iS7LmhUaA?autoplay=1&mute=1&controls=0', // Times Square
-            'https://www.youtube.com/embed/sL6h0Y5Ue5k?autoplay=1&mute=1&controls=0', // Tokyo
-            'https://www.youtube.com/embed/9Auq9mYxFEE?autoplay=1&mute=1&controls=0'  // Venice Beach
-        ];
-
-        function openGodsEye() {
+        async function openGodsEye() {
             document.getElementById('gods-eye-ui').style.display = 'block';
             speak("God's Eye Protocol activated. Accessing global surveillance network.");
             
             const grid = document.getElementById('gods-eye-grid');
-            grid.innerHTML = ''; // Ensure clean slate
+            grid.innerHTML = '<div style="color:#ff0033; font-family:Orbitron; text-align:center; font-size:20px; grid-column:1/-1;">Establishing encrypted uplink to global nodes...</div>'; 
             
-            // Dynamically create iframes to prevent memory drain when closed
-            godsEyeFeeds.forEach(url => {
-                const wrapper = document.createElement('div');
-                wrapper.style.border = '2px solid #ff0033';
-                wrapper.style.boxShadow = '0 0 15px rgba(255,0,51,0.3)';
-                wrapper.style.position = 'relative';
-                wrapper.style.backgroundColor = '#000';
-                wrapper.style.borderRadius = '5px';
-                wrapper.style.overflow = 'hidden';
+            try {
+                const res = await fetch('/api/godseye');
+                const data = await res.json();
                 
-                wrapper.innerHTML = `
-                    <div style="position:absolute; top:10px; left:10px; color:#ff0033; font-family:'Orbitron'; font-size:14px; background:rgba(0,0,0,0.7); padding:2px 8px; border:1px solid #ff0033; z-index:10; border-radius:3px;">● LIVE REC</div>
-                    <iframe src="${url}" style="width:100%; height:100%; border:none;" allow="autoplay; encrypted-media"></iframe>
-                `;
-                grid.appendChild(wrapper);
-            });
+                grid.innerHTML = ''; // Clear loading text
+                
+                if (data.feeds && data.feeds.length > 0) {
+                    data.feeds.forEach(url => {
+                        const wrapper = document.createElement('div');
+                        wrapper.style.border = '2px solid #ff0033';
+                        wrapper.style.boxShadow = '0 0 15px rgba(255,0,51,0.3)';
+                        wrapper.style.position = 'relative';
+                        wrapper.style.backgroundColor = '#000';
+                        wrapper.style.borderRadius = '5px';
+                        wrapper.style.overflow = 'hidden';
+                        
+                        wrapper.innerHTML = `
+                            <div style="position:absolute; top:10px; left:10px; color:#ff0033; font-family:'Orbitron'; font-size:14px; background:rgba(0,0,0,0.7); padding:2px 8px; border:1px solid #ff0033; z-index:10; border-radius:3px;">● LIVE REC</div>
+                            <iframe src="${url}" style="width:100%; height:100%; border:none;" allow="autoplay; encrypted-media"></iframe>
+                        `;
+                        grid.appendChild(wrapper);
+                    });
+                } else {
+                    grid.innerHTML = '<div style="color:#ff0033; text-align:center; grid-column:1/-1;">Connection failed. Nodes unreachable.</div>';
+                }
+            } catch (e) {
+                grid.innerHTML = '<div style="color:#ff0033; text-align:center; grid-column:1/-1;">Critical uplink failure.</div>';
+            }
         }
 
         function closeGodsEye() {
