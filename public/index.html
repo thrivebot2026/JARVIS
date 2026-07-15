@@ -1174,17 +1174,22 @@
             <p>Unleash a chaotic sequence of music, flashing lights, and mass UI spawns.</p>
         </div>
 
+        <div class="feature-item" onclick="openHologram('vault')" style="cursor: pointer; border: 1px solid var(--primary-blue); margin-top: 10px; background: rgba(0,212,255,0.05);">
+            <h3 style="color: var(--primary-blue);"><i class="fas fa-lock"></i> 3D Data Vault</h3>
+            <p>A secure 3D archive to permanently save your links and notes.</p>
+        </div>
+
+        <div class="feature-item" onclick="openHologram('palace')" style="cursor: pointer; border: 1px solid #ff8800; margin-top: 10px; background: rgba(255,136,0,0.05);">
+            <h3 style="color: #ff8800;"><i class="fas fa-brain"></i> The Memory Palace</h3>
+            <p>A 3D space manifesting everything JARVIS has memorized for you.</p>
+        </div>
+
         <div class="feature-item" onclick="document.getElementById('hologram-library-panel').style.display = document.getElementById('hologram-library-panel').style.display === 'none' ? 'block' : 'none';" style="cursor: pointer; border: 1px solid var(--primary-blue); margin-top: 10px; background: rgba(0,212,255,0.05);">
             <h3 style="color: var(--primary-blue);"><i class="fas fa-cube"></i> 3D Hologram Library</h3>
             <p>Access and preview available 3D projections.</p>
         </div>
-        
         <!-- Nested Hologram Library -->
         <div id="hologram-library-panel" style="display: none; padding: 10px; border-left: 2px solid var(--primary-blue); margin: 10px 0;">
-            <div class="library-item" onclick="openHologram('vault')" style="padding: 10px; border: 1px solid rgba(0, 212, 255, 0.3); margin-bottom: 5px; cursor: pointer; transition: 0.2s;" onmouseover="this.style.background='rgba(0,212,255,0.1)'" onmouseout="this.style.background='transparent'">
-                <h4 style="margin-bottom: 5px; font-family: 'Orbitron', sans-serif;"><i class="fas fa-lock"></i> 3D Data Vault</h4>
-                <p style="font-size: 0.8em; opacity: 0.7;">"Open the vault" | "Show data vault"</p>
-            </div>
             <div class="library-item" onclick="openHologram('globe')" style="padding: 10px; border: 1px solid rgba(0, 212, 255, 0.3); margin-bottom: 5px; cursor: pointer; transition: 0.2s;" onmouseover="this.style.background='rgba(0,212,255,0.1)'" onmouseout="this.style.background='transparent'">
                 <h4 style="margin-bottom: 5px; font-family: 'Orbitron', sans-serif;"><i class="fas fa-globe"></i> Global Threat Map</h4>
                 <p style="font-size: 0.8em; opacity: 0.7;">"Render globe" | "Open global map"</p>
@@ -1652,6 +1657,14 @@
                 <button onclick="saveToVault()" style="background:rgba(0,212,255,0.2); border:1px solid var(--primary-blue); color:var(--primary-blue); padding:10px; cursor:pointer; font-weight:bold; transition:0.2s; font-family:'Orbitron';">SAVE</button>
             </div>
             <div id="vault-list" style="margin-top:20px; overflow-y:auto; max-height:calc(100vh - 250px); pointer-events:auto;"></div>
+        </div>
+        
+        <!-- Palace HUD Overlay -->
+        <div id="palace-ui" style="display:none; position:absolute; top:20%; left:50%; transform:translateX(-50%); width:50%; max-width:600px; background:rgba(255,136,0,0.1); border:1px solid #ff8800; padding:20px; text-align:center; box-shadow:0 0 20px rgba(255,136,0,0.2); backdrop-filter:blur(5px); pointer-events:auto; color:#ff8800; font-family:'Rajdhani', sans-serif;">
+            <i class="fas fa-times" style="position:absolute; top:10px; right:10px; cursor:pointer; font-size:20px;" onclick="document.getElementById('palace-ui').style.display='none'"></i>
+            <h2 style="font-family:'Orbitron'; text-shadow:0 0 10px #ff8800; margin-bottom:15px; margin-top:0;">MEMORY ORB</h2>
+            <p id="palace-memory-text" style="font-size:20px; line-height:1.5; color:#fff; word-break:break-word;">Click a glowing orb to access memory.</p>
+            <button id="palace-delete-btn" style="display:none; margin-top:20px; background:rgba(255,50,50,0.2); border:1px solid red; color:red; padding:10px 20px; cursor:pointer; font-weight:bold; font-family:'Orbitron';">PURGE MEMORY</button>
         </div>
     </div>
 
@@ -2826,6 +2839,15 @@
                     closeHologram();
                 } else {
                     openHologram('vault');
+                }
+                return;
+            }
+
+            if (query.includes("palace") || query.includes("memory palace")) {
+                if (query.includes("close") || query.includes("hide")) {
+                    closeHologram();
+                } else {
+                    openHologram('palace');
                 }
                 return;
             }
@@ -4748,6 +4770,43 @@
                 scene.add(innerCore);
                 holoObjects.push(innerCore);
                 
+            } else if (type === 'palace') {
+                let memories = JSON.parse(localStorage.getItem('jarvis_memories') || '[]');
+                const orbGeo = new THREE.SphereGeometry(0.3, 16, 16);
+                
+                const coreGeo = new THREE.IcosahedronGeometry(1.5, 0);
+                const coreMat = new THREE.MeshBasicMaterial({ color: 0xff8800, wireframe: true, transparent: true, opacity: 0.3 });
+                const core = new THREE.Mesh(coreGeo, coreMat);
+                core.userData = { rotY: 0.002, rotX: 0.001 };
+                scene.add(core);
+                holoObjects.push(core);
+
+                memories.forEach((mem, i) => {
+                    const orbMat = new THREE.MeshBasicMaterial({ color: 0xffaa00, transparent: true, opacity: 0.9 });
+                    const orb = new THREE.Mesh(orbGeo, orbMat);
+                    
+                    const radius = 3 + Math.random() * 4;
+                    const theta = Math.random() * Math.PI * 2;
+                    const phi = Math.acos((Math.random() * 2) - 1);
+                    
+                    orb.position.x = radius * Math.sin(phi) * Math.cos(theta);
+                    orb.position.y = radius * Math.sin(phi) * Math.sin(theta);
+                    orb.position.z = radius * Math.cos(phi);
+                    
+                    orb.userData = { 
+                        memoryText: mem, 
+                        memoryIndex: i,
+                        rotY: (Math.random() - 0.5) * 0.02,
+                        rotX: (Math.random() - 0.5) * 0.02,
+                        isOrb: true,
+                        orbitRadius: radius,
+                        orbitSpeed: (Math.random() * 0.01) + 0.002,
+                        orbitAngle: theta
+                    };
+                    
+                    scene.add(orb);
+                    holoObjects.push(orb);
+                });
             } else if (type === 'vault') {
                 const geo = new THREE.OctahedronGeometry(2, 0);
                 const mat = new THREE.MeshBasicMaterial({ color: 0x00d4ff, wireframe: true, transparent: true, opacity: 0.8 });
@@ -4831,8 +4890,13 @@
                 if (!hologramActive) return;
                 
                 holoObjects.forEach(obj => {
-                    obj.rotation.y += obj.userData.rotY;
-                    obj.rotation.x += obj.userData.rotX;
+                    if (obj.userData.rotY !== undefined) obj.rotation.y += obj.userData.rotY;
+                    if (obj.userData.rotX !== undefined) obj.rotation.x += obj.userData.rotX;
+                    if (obj.userData.isOrb) {
+                        obj.userData.orbitAngle += obj.userData.orbitSpeed;
+                        obj.position.x = obj.userData.orbitRadius * Math.cos(obj.userData.orbitAngle);
+                        obj.position.z = obj.userData.orbitRadius * Math.sin(obj.userData.orbitAngle);
+                    }
                 });
                 particles.rotation.y += 0.001;
                 
@@ -4857,8 +4921,11 @@
             document.getElementById('hologram-container').style.display = 'block';
             const globeUi = document.getElementById('globe-ui');
             const vaultUi = document.getElementById('vault-ui');
+            const palaceUi = document.getElementById('palace-ui');
+            
             if(globeUi) globeUi.style.display = type === 'globe' ? 'block' : 'none';
             if(vaultUi) vaultUi.style.display = type === 'vault' ? 'block' : 'none';
+            if(palaceUi) palaceUi.style.display = 'none'; // hidden until orb is clicked
             
             if(type === 'vault') renderVault();
             
@@ -4918,6 +4985,41 @@
         function closeHologram() {
             document.getElementById('hologram-container').style.display = 'none';
             hologramActive = false;
+        }
+
+        // --- PALACE RAYCASTER ---
+        let palaceRaycaster = new THREE.Raycaster();
+        let palaceMouse = new THREE.Vector2();
+
+        document.getElementById('hologram-container').addEventListener('click', (event) => {
+            if (!hologramActive || !scene) return;
+            palaceMouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+            palaceMouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+            palaceRaycaster.setFromCamera(palaceMouse, camera);
+            const intersects = palaceRaycaster.intersectObjects(holoObjects);
+            if (intersects.length > 0) {
+                const obj = intersects[0].object;
+                if (obj.userData && obj.userData.memoryText) {
+                    const ui = document.getElementById('palace-ui');
+                    if(ui) {
+                        ui.style.display = 'block';
+                        document.getElementById('palace-memory-text').innerText = obj.userData.memoryText;
+                        const delBtn = document.getElementById('palace-delete-btn');
+                        delBtn.style.display = 'inline-block';
+                        delBtn.onclick = () => deleteMemoryFromPalace(obj.userData.memoryIndex);
+                        playSynthSound('tap');
+                    }
+                }
+            }
+        });
+        
+        function deleteMemoryFromPalace(index) {
+            let memories = JSON.parse(localStorage.getItem('jarvis_memories') || '[]');
+            memories.splice(index, 1);
+            localStorage.setItem('jarvis_memories', JSON.stringify(memories));
+            document.getElementById('palace-ui').style.display = 'none';
+            speak("Memory purged from the palace.");
+            initHologram('palace');
         }
 
         // --- CHALKBOARD LOGIC ---
