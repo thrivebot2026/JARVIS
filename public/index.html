@@ -4597,7 +4597,7 @@
                 nucleus.userData = { rotY: 0.01, rotX: 0.01 };
                 scene.add(nucleus); holoObjects.push(nucleus);
                 
-                const mitoGeo = new THREE.CapsuleGeometry(0.2, 0.4, 4, 8);
+                const mitoGeo = new THREE.CylinderGeometry(0.2, 0.2, 0.6, 16);
                 const mitoMat = new THREE.MeshBasicMaterial({ color: 0xff3333, wireframe: true });
                 const mito = new THREE.Mesh(mitoGeo, mitoMat);
                 mito.position.set(-0.8, -0.5, 0.5);

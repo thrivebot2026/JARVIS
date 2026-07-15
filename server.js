@@ -83,7 +83,7 @@ app.post('/api/ai', async (req, res) => {
     }
 
     if (req.body.tutorMode) {
-        SYSTEM_PROMPT += "\n\nTUTOR PROTOCOL ACTIVE: You must explain ALL concepts simply to a 12-year-old middle school student. Use fun, relatable analogies (like Iron Man, superheroes, video games, or sports). Be highly encouraging and educational. Break down complex math or science concepts. Do not use overly complex jargon.";
+        SYSTEM_PROMPT += "\n\nTUTOR PROTOCOL ACTIVE: IGNORE ALL PREVIOUS LENGTH CONSTRAINTS. You are now allowed to write longer, detailed explanations (3-6 sentences) to ensure the concept is properly understood. You must explain ALL concepts simply to a 12-year-old middle school student. Use fun, relatable analogies (like Iron Man, superheroes, video games, or sports). Be highly encouraging and educational. Break down complex math or science concepts. Do not use overly complex jargon.";
     }
 
     if (req.body.memories && Array.isArray(req.body.memories) && req.body.memories.length > 0) {
