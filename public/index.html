@@ -495,6 +495,50 @@
             border-radius: 50%;
             transform: translate(-50%, -50%);
         }
+        
+        /* --- MOBILE LAYOUT TOGGLE --- */
+        .mobile-layout .main-feature-drawer {
+            width: 100%; /* Take full width on mobile */
+            border-right: none;
+            border-bottom: 1px solid var(--primary-blue);
+            height: 50%;
+            bottom: unset; /* Let it slide from top or just be full width */
+        }
+        .mobile-layout .main-container {
+            transform: scale(0.6); /* Shrink HUD */
+            transform-origin: center top;
+            margin-top: 50px;
+        }
+        .mobile-layout #gods-eye-panel,
+        .mobile-layout #market-panel,
+        .mobile-layout #palace-panel,
+        .mobile-layout #vault-panel,
+        .mobile-layout #chalkboard-panel,
+        .mobile-layout #notepad-panel,
+        .mobile-layout #calendar-panel {
+            width: 95%;
+            height: 80%;
+            left: 2.5%;
+            top: 10%;
+        }
+        .mobile-layout .gods-eye-grid {
+            grid-template-columns: 1fr; /* Stack vertically */
+        }
+        .mobile-layout #chat-container {
+            width: 90%;
+            right: 5%;
+        }
+
+        /* Responsive scaling */
+        @media (max-width: 600px) {
+            .mobile-layout .main-container {
+                transform: scale(0.5);
+            }
+            .mobile-layout .controls {
+                transform: scale(1.5); /* Make input bigger relative to HUD */
+            }
+        }
+        /* --------------------------- */
 
         /* --- HUD Radar --- */
         #hud-radar {
@@ -1417,6 +1461,9 @@
         <button class="biometric-btn" id="biometric-unlock-btn" onclick="attemptBiometricUnlock()">
             <i class="fas fa-fingerprint"></i> INITIATE BIOMETRIC SCAN
         </button>
+        <button onclick="toggleMobileLayout()" style="margin-top: 15px; background:transparent; border:1px solid #ffaa00; color:#ffaa00; padding:10px 20px; font-family:'Orbitron'; font-size:12px; cursor:pointer; letter-spacing:1px; border-radius:4px;">
+            <i class="fas fa-mobile-alt"></i> TOGGLE MOBILE MODE
+        </button>
         <div id="lock-status">Awaiting Authorization...</div>
     </div>
         <!-- IRON MAN HUD OVERLAY -->
@@ -1572,7 +1619,9 @@
             <button class="mic-btn" id="micBtn">🎙️</button>
             <div style="display: flex; flex-direction: column; align-items: center; gap: 5px;">
                 <div class="console-log" id="log">SYSTEM READY</div>
-                <input type="text" id="text-cmd-input" placeholder="Type command here..." style="background: rgba(0, 15, 30, 0.7); border: 1px solid rgba(0, 212, 255, 0.3); color: var(--primary-blue); padding: 5px 10px; width: 300px; font-family: var(--font-family); font-size: 0.9em; outline: none; border-radius: 4px; text-align: center; box-shadow: 0 0 10px rgba(0, 212, 255, 0.1); transition: 0.3s;" autocomplete="off">
+                <form id="cmd-form" onsubmit="handleFormSubmit(event)" style="margin:0; padding:0;">
+                    <input type="text" id="text-cmd-input" placeholder="Type command here..." style="background: rgba(0, 15, 30, 0.7); border: 1px solid rgba(0, 212, 255, 0.3); color: var(--primary-blue); padding: 5px 10px; width: 300px; font-family: var(--font-family); font-size: 0.9em; outline: none; border-radius: 4px; text-align: center; box-shadow: 0 0 10px rgba(0, 212, 255, 0.1); transition: 0.3s;" autocomplete="off">
+                </form>
             </div>
         </div>
 
@@ -1909,6 +1958,34 @@
         const historyPanel = document.getElementById('history-panel');
         const historyContent = document.getElementById('history-content');
         const textCmdInput = document.getElementById('text-cmd-input');
+        
+        function handleFormSubmit(e) {
+            e.preventDefault();
+            if(!textCmdInput) return;
+            const cmd = textCmdInput.value.trim();
+            if (cmd) {
+                textCmdInput.value = '';
+                // Simulate receiving a command visually
+                logEl.innerText = "COMMAND RECEIVED: " + cmd;
+                wavesEl.classList.remove('active-voice');
+                
+                // Hide mobile keyboard explicitly by blurring
+                textCmdInput.blur();
+                
+                handleCommand(cmd);
+            }
+        }
+        
+        function toggleMobileLayout() {
+            document.body.classList.toggle('mobile-layout');
+            const isMobile = document.body.classList.contains('mobile-layout');
+            localStorage.setItem('jarvis_layout_pref', isMobile ? 'mobile' : 'desktop');
+        }
+
+        // Apply saved layout pref on load
+        if(localStorage.getItem('jarvis_layout_pref') === 'mobile') {
+            document.body.classList.add('mobile-layout');
+        }
 
         let isListening = false;
         let isSpeaking = false;
@@ -2007,21 +2084,6 @@
         const lockStatus = document.getElementById('lock-status');
         const pinInputs = document.querySelectorAll('.pin-input');
         
-        if (textCmdInput) {
-            textCmdInput.addEventListener('keydown', (e) => {
-                if (e.key === 'Enter') {
-                    const cmd = textCmdInput.value.trim();
-                    if (cmd) {
-                        textCmdInput.value = '';
-                        // Simulate receiving a command visually
-                        logEl.innerText = "COMMAND RECEIVED: " + cmd;
-                        wavesEl.classList.remove('active-voice');
-                        handleCommand(cmd);
-                    }
-                }
-            });
-        }
-
         pinInputs.forEach((input, index) => {
             input.addEventListener('input', (e) => {
                 if (e.target.value.length === 1 && index < pinInputs.length - 1) {
