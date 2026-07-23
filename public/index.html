@@ -1339,6 +1339,16 @@
             <div id="cr-list" style="margin-top:5px; font-size:12px; color:#ff00ff;"></div>
         </div>
 
+        <div class="feature-item" style="border: 1px solid #ffaa00; margin-top: 10px; background: rgba(255,170,0,0.05);">
+            <h3 style="color: #ffaa00;"><i class="fas fa-fingerprint"></i> Biometric Data Key</h3>
+            <p>Export or import your facial recognition anchors locally.</p>
+            <div style="margin-top: 10px; display:flex; gap:10px;">
+                <button onclick="exportBiometrics()" style="flex:1; background:#ffaa00; border:none; color:#000; padding:5px; cursor:pointer;"><b>EXPORT</b></button>
+                <button onclick="document.getElementById('import-biometrics-file').click()" style="flex:1; background:transparent; border:1px solid #ffaa00; color:#ffaa00; padding:5px; cursor:pointer;"><b>IMPORT</b></button>
+                <input type="file" id="import-biometrics-file" style="display:none;" accept=".key,.json" onchange="importBiometrics(event)">
+            </div>
+        </div>
+
         <div class="feature-item" onclick="togglePhishingScanner()" style="cursor: pointer; border: 1px solid #00ffff; margin-top: 10px; background: rgba(0,255,255,0.05);">
             <h3 style="color: #00ffff;"><i class="fas fa-shield-alt"></i> Cyber-Threat Scanner</h3>
             <p>AI-powered phishing and payload detection.</p>
@@ -3322,7 +3332,7 @@
             if (query.includes("run facial recognition") || query.includes("who am i") || query.includes("analyze my face")) {
                 const anchors = JSON.parse(localStorage.getItem('jarvis_face_references') || '[]');
                 if (anchors.length === 0) {
-                    speak("I do not have any registered biometric anchors, Sir. Please tell me to register my face first.");
+                    speak("I do not have any registered biometric anchors, Sir. Please tell me to register my face first, or import a Biometric Key.");
                     saveHistory(cmd, "Facial Recognition failed (No anchor).");
                     return;
                 }
@@ -5843,6 +5853,45 @@
                     if (document.body.contains(alertDiv)) document.body.removeChild(alertDiv);
                 }, 5000);
             }
+        }
+
+        // --- BIOMETRIC IMPORT/EXPORT ---
+        function exportBiometrics() {
+            const data = localStorage.getItem('jarvis_face_references');
+            if(!data || data === '[]') {
+                speak("You have no facial biometrics saved to export.");
+                return;
+            }
+            const blob = new Blob([data], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'jarvis_biometrics.key';
+            a.click();
+            URL.revokeObjectURL(url);
+            speak("Biometric key exported successfully to your local drive.");
+        }
+
+        function importBiometrics(event) {
+            const file = event.target.files[0];
+            if(!file) return;
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                try {
+                    const data = JSON.parse(e.target.result);
+                    if(Array.isArray(data)) {
+                        localStorage.setItem('jarvis_face_references', JSON.stringify(data));
+                        speak(`Biometric key imported successfully. ${data.length} facial profiles restored.`);
+                    } else {
+                        speak("Invalid biometric key format.");
+                    }
+                } catch(err) {
+                    speak("Failed to parse biometric key file.");
+                }
+            };
+            reader.readAsText(file);
+            // Reset input so you can re-import if needed
+            event.target.value = '';
         }
 
         // --- PHISHING LASER-SCAN (Phase 4) ---
