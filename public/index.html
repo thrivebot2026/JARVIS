@@ -497,29 +497,7 @@
         }
         
         /* --- MOBILE LAYOUT TOGGLE --- */
-        body.mobile-layout {
-            transform: scale(0.45);
-            transform-origin: top left;
-            width: 222vw !important;
-            height: 222vh !important;
-            overflow-x: hidden;
-        }
-        .mobile-layout #top-action-buttons {
-            left: 20px !important;
-            top: 70px !important;
-            flex-wrap: wrap !important;
-            width: 400px;
-        }
-        .mobile-layout .main-feature-drawer {
-            width: 500px !important;
-            border-right: none;
-            border-bottom: 1px solid var(--primary-blue);
-            height: 100vh;
-        }
-        .mobile-layout #chat-container {
-            width: 80% !important;
-            right: 10% !important;
-        }
+        /* Dynamic JS scaling handles the body transform now */
         .mobile-layout #lock-screen .lock-icon { font-size: 50px; }
         .mobile-layout #lock-screen .lock-title { font-size: 18px; }
         .mobile-layout #lock-screen .pin-input { width: 40px; height: 50px; font-size: 24px; margin: 0 5px; }
@@ -1972,6 +1950,27 @@
             }
         }
         
+        function applyMobileScale() {
+            if (document.body.classList.contains('mobile-layout')) {
+                // Force a virtual 1920x1080 desktop and shrink it to fit the phone screen
+                const scale = Math.min(window.innerWidth / 1920, window.innerHeight / 1080);
+                document.body.style.transform = `scale(${scale})`;
+                document.body.style.transformOrigin = 'top left';
+                document.body.style.width = '1920px';
+                document.body.style.height = '1080px';
+                document.body.style.overflow = 'hidden';
+                document.body.style.position = 'fixed';
+            } else {
+                document.body.style.transform = '';
+                document.body.style.transformOrigin = '';
+                document.body.style.width = '';
+                document.body.style.height = '';
+                document.body.style.overflow = '';
+                document.body.style.position = '';
+            }
+        }
+        window.addEventListener('resize', applyMobileScale);
+
         function toggleMobileLayout() {
             document.body.classList.toggle('mobile-layout');
             const isMobile = document.body.classList.contains('mobile-layout');
@@ -1988,11 +1987,13 @@
                 toggleBtnDrawer.style.borderColor = isMobile ? '#ffaa00' : '#00ff88';
                 toggleBtnDrawer.style.color = isMobile ? '#ffaa00' : '#00ff88';
             }
+            applyMobileScale();
         }
 
         // Apply saved layout pref on load
         if(localStorage.getItem('jarvis_layout_pref') === 'mobile') {
             document.body.classList.add('mobile-layout');
+            applyMobileScale();
             const toggleBtn = document.getElementById('mobile-toggle-btn');
             if (toggleBtn) {
                 toggleBtn.innerHTML = '<i class="fas fa-desktop"></i> REVERT TO DESKTOP';
@@ -2347,13 +2348,11 @@
             };
 
             recognition.onend = () => {
-                if (isListening) {
-                    // Add a tiny delay to prevent tight crashing loops
-                    setTimeout(() => {
-                        try {
-                            recognition.start();
-                        } catch(e) {}
-                    }, 50);
+                // If it is a mobile device, stop listening instead of looping
+                if (!recognition.continuous && isListening) {
+                    stopListening();
+                } else if (isListening && !isSpeaking) {
+                    try { recognition.start(); } catch(e){}
                 }
             };
         }
