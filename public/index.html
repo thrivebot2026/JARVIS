@@ -1958,15 +1958,22 @@
                 document.body.style.transformOrigin = 'top left';
                 document.body.style.width = '1920px';
                 document.body.style.height = '1080px';
-                document.body.style.overflow = 'hidden';
-                document.body.style.position = 'fixed';
+                
+                // Prevent iOS Safari from rubber-banding or scrolling to off-screen elements (like the drawer)
+                document.documentElement.style.width = '100vw';
+                document.documentElement.style.height = '100vh';
+                document.documentElement.style.overflow = 'hidden';
+                document.documentElement.style.position = 'fixed';
             } else {
                 document.body.style.transform = '';
                 document.body.style.transformOrigin = '';
                 document.body.style.width = '';
                 document.body.style.height = '';
-                document.body.style.overflow = '';
-                document.body.style.position = '';
+                
+                document.documentElement.style.width = '';
+                document.documentElement.style.height = '';
+                document.documentElement.style.overflow = '';
+                document.documentElement.style.position = '';
             }
         }
         window.addEventListener('resize', applyMobileScale);
