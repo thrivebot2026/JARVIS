@@ -497,51 +497,32 @@
         }
         
         /* --- MOBILE LAYOUT TOGGLE --- */
+        body.mobile-layout {
+            transform: scale(0.45);
+            transform-origin: top left;
+            width: 222vw !important;
+            height: 222vh !important;
+            overflow-x: hidden;
+        }
+        .mobile-layout #top-action-buttons {
+            left: 20px !important;
+            top: 70px !important;
+            flex-wrap: wrap !important;
+            width: 400px;
+        }
+        .mobile-layout .main-feature-drawer {
+            width: 500px !important;
+            border-right: none;
+            border-bottom: 1px solid var(--primary-blue);
+            height: 100vh;
+        }
+        .mobile-layout #chat-container {
+            width: 80% !important;
+            right: 10% !important;
+        }
         .mobile-layout #lock-screen .lock-icon { font-size: 50px; }
         .mobile-layout #lock-screen .lock-title { font-size: 18px; }
         .mobile-layout #lock-screen .pin-input { width: 40px; height: 50px; font-size: 24px; margin: 0 5px; }
-        .mobile-layout .main-feature-drawer {
-            width: 100%; /* Take full width on mobile */
-            border-right: none;
-            border-bottom: 1px solid var(--primary-blue);
-            height: 50%;
-            bottom: unset; /* Let it slide from top or just be full width */
-        }
-        .mobile-layout .main-container {
-            transform: scale(0.6); /* Shrink HUD */
-            transform-origin: center top;
-            margin-top: 50px;
-        }
-        .mobile-layout #gods-eye-panel,
-        .mobile-layout #market-panel,
-        .mobile-layout #palace-panel,
-        .mobile-layout #vault-panel,
-        .mobile-layout #chalkboard-panel,
-        .mobile-layout #notepad-panel,
-        .mobile-layout #calendar-panel {
-            width: 95%;
-            height: 80%;
-            left: 2.5%;
-            top: 10%;
-        }
-        .mobile-layout .gods-eye-grid {
-            grid-template-columns: 1fr; /* Stack vertically */
-        }
-        .mobile-layout #chat-container {
-            width: 90%;
-            right: 5%;
-        }
-
-        /* Responsive scaling */
-        @media (max-width: 600px) {
-            .mobile-layout .main-container {
-                transform: scale(0.5);
-            }
-            .mobile-layout .controls {
-                transform: scale(1.5); /* Make input bigger relative to HUD */
-            }
-        }
-        /* --------------------------- */
 
         /* --- HUD Radar --- */
         #hud-radar {
@@ -1598,7 +1579,7 @@
     </div>
 
     <!-- TOP ACTION BUTTONS (AFTER CHAT LOG) -->
-    <div style="position: absolute; top: 20px; left: 420px; z-index: 1000; display: flex; gap: 10px;">
+    <div id="top-action-buttons" style="position: absolute; top: 20px; left: 420px; z-index: 1000; display: flex; gap: 10px;">
         <button onclick="toggleJarvisMode()" id="jarvis-mode-btn" style="background: rgba(0, 15, 30, 0.85); border: 1px solid rgba(0, 195, 255, 0.3); color: var(--primary-blue); padding: 10px 20px; border-radius: 5px; cursor: pointer; font-family: 'Orbitron', monospace; transition: 0.3s; font-size: 14px;">
             <i class="fas fa-shield-alt"></i> JARVIS MODE: OFF
         </button>
@@ -2304,8 +2285,9 @@
         const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
         if (SpeechRecognition) {
             recognition = new SpeechRecognition();
-            recognition.continuous = true;
-            recognition.interimResults = true;
+            // iOS Safari bug fix: continuous must be false for mobile WebRTC mic to work reliably
+            recognition.continuous = !/iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+            recognition.interimResults = false;
             recognition.lang = currentMicLang;
 
             recognition.onresult = (event) => {
@@ -2359,6 +2341,7 @@
                 }
                 // Stop for critical permission or hardware issues
                 if (e.error === 'not-allowed' || e.error === 'audio-capture') {
+                    alert("Microphone Blocked! Please go to your iPhone Settings -> Safari -> Microphone and set it to 'Allow'.");
                     stopListening();
                 }
             };
